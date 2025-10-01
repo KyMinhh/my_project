@@ -52,7 +52,7 @@ A comprehensive web application for video transcription, editing, and collaborat
    cd backend
    npm install
    # Copy environment variables
-   cp .env.example .env
+   create .env in backend
    # Edit .env with your configuration
    npm run dev
    ```
