@@ -64,7 +64,7 @@ exports.transcribeFromYoutube = async (req, res, next) => {
     const io = req.app.get('socketio'); // Lấy io instance từ request
 
     try {
-        const { youtubeUrl, languageCode: languageCodeFromClient, enableSpeakerDiarization = false } = req.body;
+        const { youtubeUrl, languageCode: languageCodeFromClient, enableSpeakerDiarization = false, targetLang = null } = req.body;
 
         // Kiểm tra URL (có thể cải thiện regex nếu cần)
         // Giữ nguyên logic kiểm tra URL hiện tại của bạn
@@ -186,8 +186,8 @@ exports.transcribeFromYoutube = async (req, res, next) => {
         console.log(`[YouTube] ✅ Responded to client for Job ${newJob._id}. Starting background task.`);
 
         setImmediate(() => {
-            // Truyền io instance vào processTranscriptionJob
-            processTranscriptionJob(io, newJob._id, videoPath, audioPath, gcsAudioUri, speechConfig)
+            // Truyền io instance và targetLang vào processTranscriptionJob
+            processTranscriptionJob(io, newJob._id, videoPath, audioPath, gcsAudioUri, speechConfig, targetLang)
                 .catch(err => {
                     console.error(`[Job ${newJob?._id}] ❌ Uncaught error in background task for YouTube:`, err);
                     if (newJob?._id) {

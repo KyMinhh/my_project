@@ -24,6 +24,14 @@ const jobSchema = new mongoose.Schema({
     gcsAudioUri: { type: String },
     transcriptionResult: { type: String },
     segments: [segmentSchema],
+    translatedTranscript: [{
+        start: { type: Number },
+        end: { type: Number },
+        text: { type: String },
+        translatedText: { type: String },
+        speakerTag: { type: Number }
+    }],
+    targetLang: { type: String },
     errorMessage: { type: String },
     createdAt: { type: Date, default: Date.now },
 

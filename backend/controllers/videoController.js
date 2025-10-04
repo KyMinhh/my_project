@@ -4,7 +4,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const jwt = require('jsonwebtoken');
 const Job = require('../models/Job');
 const { extractAudio } = require('../utils/ffmpegUtils');
-const { uploadToGCS, transcribeAudioFromGCS } = require('../services/googleCloudService');
+const { uploadToGCS, transcribeAudioFromGCS, translateText } = require('../services/googleCloudService');
 
 // Helper function to get userId from request
 const getUserIdFromRequest = (req) => {
@@ -45,7 +45,7 @@ function getVideoDuration(filePath) {
     });
 }
 
-async function processTranscriptionJob(ioInstance, jobId, videoPath, audioPath, gcsAudioUri, speechConfig) {
+async function processTranscriptionJob(ioInstance, jobId, videoPath, audioPath, gcsAudioUri, speechConfig, targetLang = null) {
     emitJobStatusUpdate(ioInstance, jobId, 'processing', 'Transcription process initiated.');
     const outputsDir = path.join(__dirname, '..', 'outputs');
     const transcriptRawJsonFilePath = path.join(outputsDir, `transcript_raw_${jobId}.json`);
@@ -71,6 +71,30 @@ async function processTranscriptionJob(ioInstance, jobId, videoPath, audioPath, 
 
         if (speechConfig.diarizationConfig?.enableSpeakerDiarization && detectedSpeakerCount !== undefined) {
             updateData.detectedSpeakerCount = detectedSpeakerCount;
+        }
+
+        // Dịch transcript nếu targetLang được cung cấp
+        if (targetLang && segments && segments.length > 0) {
+            console.log(`🌐 Starting translation to ${targetLang} for job ${jobId}...`);
+            emitJobStatusUpdate(ioInstance, jobId, 'processing', `Translating to ${targetLang}...`);
+            
+            try {
+                const translatedSegments = await Promise.all(
+                    segments.map(async (segment) => ({
+                        ...segment,
+                        translatedText: await translateText(segment.text, targetLang)
+                    }))
+                );
+                
+                updateData.translatedTranscript = translatedSegments;
+                updateData.targetLang = targetLang;
+                successMessage = `Transcription and translation to ${targetLang} successful.`;
+                console.log(`✔️ Translation completed for job ${jobId}`);
+            } catch (translationError) {
+                console.error(`❌ Translation failed for job ${jobId}:`, translationError.message);
+                successMessage = 'Transcription successful, but translation failed.';
+                updateData.errorMessage = `Translation error: ${translationError.message}`;
+            }
         }
 
         if (!segments || segments.length === 0) {
@@ -190,10 +214,12 @@ exports.transcribeVideo = async (req, res) => {
             };
         }
 
+        const targetLangFromClient = req.body.targetLang || null;
+
         res.status(202).json({ success: true, message: 'Processing started. Job created.', jobId: newJob._id, data: { duration: durationInSeconds } });
 
         setImmediate(() => {
-            processTranscriptionJob(io, newJob._id, videoPath, audioPath, gcsAudioUri, speechConfig)
+            processTranscriptionJob(io, newJob._id, videoPath, audioPath, gcsAudioUri, speechConfig, targetLangFromClient)
                 .catch(err => { 
                     if (newJob?._id) {
                         const errorMsg = err.message || 'Background processing failed unexpectedly.';

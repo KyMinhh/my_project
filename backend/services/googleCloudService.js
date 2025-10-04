@@ -1,5 +1,6 @@
 const { Storage } = require('@google-cloud/storage');
 const { SpeechClient } = require('@google-cloud/speech');
+const { Translate } = require('@google-cloud/translate').v2;
 const path = require('path');
 
 // Check env vars
@@ -12,6 +13,7 @@ if (!process.env.GCS_BUCKET_NAME) {
 
 const storage = new Storage();
 const speechClient = new SpeechClient();
+const translate = new Translate();
 
 const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'myspeechtt1';
 
@@ -206,7 +208,25 @@ async function transcribeAudioFromGCS(gcsUri, config) {
     }
 }
 
+
+async function translateText(text, targetLang) {
+    try {
+        if (!text || !targetLang) {
+            throw new Error('Text and target language are required for translation');
+        }
+        
+        console.log(`🌐 Translating text to ${targetLang}...`);
+        const [translation] = await translate.translate(text, targetLang);
+        console.log(`✔️ Translation completed`);
+        return translation;
+    } catch (error) {
+        console.error('❌ Translation error:', error.message);
+        throw new Error(`Failed to translate text: ${error.message}`);
+    }
+}
+
 module.exports = {
     uploadToGCS,
     transcribeAudioFromGCS,
+    translateText,
 };

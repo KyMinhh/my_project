@@ -211,3 +211,69 @@ exports.downloadTranscript = async (req, res, next) => {
         }
     }
 };
+
+exports.translateJob = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const { targetLang } = req.body;
+
+        if (!targetLang) {
+            return res.status(400).json({
+                success: false,
+                message: 'Target language is required'
+            });
+        }
+
+        console.log(`📝 Manual translation request for job ${jobId} to ${targetLang}`);
+
+        const job = await Job.findById(jobId);
+        if (!job) {
+            return res.status(404).json({
+                success: false,
+                message: 'Job not found'
+            });
+        }
+
+        if (!job.segments || job.segments.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No transcript segments available to translate'
+            });
+        }
+
+        console.log(`🌐 Translating ${job.segments.length} segments to ${targetLang}...`);
+
+        const translatedSegments = await Promise.all(
+            job.segments.map(async (segment) => ({
+                start: segment.start,
+                end: segment.end,
+                text: segment.text,
+                translatedText: await translateText(segment.text, targetLang),
+                speakerTag: segment.speakerTag
+            }))
+        );
+
+        await Job.findByIdAndUpdate(jobId, {
+            translatedTranscript: translatedSegments,
+            targetLang: targetLang
+        });
+
+        console.log(`✔️ Translation completed for job ${jobId}`);
+
+        res.json({
+            success: true,
+            message: `Translation to ${targetLang} completed successfully`,
+            data: {
+                translatedTranscript: translatedSegments,
+                targetLang: targetLang
+            }
+        });
+    } catch (error) {
+        console.error('❌ Translation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Translation failed',
+            error: error.message
+        });
+    }
+}
