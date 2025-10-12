@@ -9,7 +9,9 @@ import {
     TranscribeInitiateResponse,
     SimpleSuccessResponse,
     ExtractMultipleSegmentsResponse,
-    SegmentTime
+    SegmentTime,
+    TranslateJobRequest,
+    TranslateJobResponse
 
 } from '../types/fileTypes';
 
@@ -220,6 +222,30 @@ export const extractMultipleVideoSegmentsApi = async (
         const errorData: ExtractMultipleSegmentsResponse = error.response?.data || {
             success: false,
             message: error.message || 'Unknown error extracting multiple segments'
+        };
+        return errorData;
+    }
+};
+
+// Translate job API
+export const translateJobApi = async (
+    jobId: string,
+    targetLang: string
+): Promise<TranslateJobResponse> => {
+    if (!jobId || !targetLang) {
+        return { success: false, message: "Job ID and target language are required." };
+    }
+    try {
+        const payload: TranslateJobRequest = { targetLang };
+        console.log(`[API] Sending POST /files/${jobId}/translate with payload:`, payload);
+        const response = await apiClient.post<TranslateJobResponse>(`/files/${jobId}/translate`, payload);
+        console.log("[API] Received response from translate:", response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error("API Translate Job Error:", error);
+        const errorData: TranslateJobResponse = error.response?.data || {
+            success: false,
+            message: error.message || 'Unknown error translating job'
         };
         return errorData;
     }

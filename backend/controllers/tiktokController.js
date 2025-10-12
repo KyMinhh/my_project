@@ -64,7 +64,7 @@ exports.transcribeFromTiktok = async (req, res, next) => {
     const io = req.app.get('socketio'); // Lấy io instance từ request
 
     try {
-        const { tiktokUrl, languageCode: languageCodeFromClient = 'auto-detect', enableSpeakerDiarization = false } = req.body;
+        const { tiktokUrl, languageCode: languageCodeFromClient = 'auto-detect', enableSpeakerDiarization = false, targetLang = null } = req.body;
 
         if (!tiktokUrl || !(tiktokUrl.includes('tiktok.com/t/') || tiktokUrl.includes('tiktok.com/@'))) {
             return res.status(400).json({ success: false, message: "Invalid TikTok URL format provided." });
@@ -165,8 +165,8 @@ exports.transcribeFromTiktok = async (req, res, next) => {
         console.log(`[TikTok] ✅ Responded to client for Job ${newJob._id}. Starting background task.`);
 
         setImmediate(() => {
-            // Truyền io instance vào processTranscriptionJob
-            processTranscriptionJob(io, newJob._id, videoPath, audioPath, gcsAudioUri, speechConfig)
+            // Truyền io instance và targetLang vào processTranscriptionJob
+            processTranscriptionJob(io, newJob._id, videoPath, audioPath, gcsAudioUri, speechConfig, targetLang)
                 .catch(err => {
                     console.error(`[Job ${newJob?._id}] ❌ Uncaught error in background task for TikTok:`, err);
                     if (newJob?._id) {

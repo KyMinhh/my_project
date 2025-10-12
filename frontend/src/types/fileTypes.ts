@@ -26,6 +26,36 @@ export interface RecentFile {
 
 export interface JobDetail extends RecentFile {
     videoFileName: any;
+    translatedTranscript?: TranslatedTranscript[];
+    targetLang?: string;
+}
+
+export interface TranslatedTranscript {
+    language: string;
+    segments: TranslatedSegment[];
+    translatedAt: string;
+}
+
+export interface TranslatedSegment {
+    start: number;
+    end: number;
+    originalText: string;
+    translatedText: string;
+    speakerTag?: number;
+}
+
+export interface TranslateJobRequest {
+    targetLang: string;
+}
+
+export interface TranslateJobResponse {
+    success: boolean;
+    message?: string;
+    data?: {
+        jobId: string;
+        targetLang: string;
+        translatedSegments: TranslatedSegment[];
+    };
 }
 
 
