@@ -10,6 +10,7 @@
   "dependencies": {
     "@google-cloud/speech": "^6.7.1",
     "@google-cloud/storage": "^7.15.2",
+    "@google-cloud/translate": "^9.2.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

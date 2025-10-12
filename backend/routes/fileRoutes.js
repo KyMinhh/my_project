@@ -2,6 +2,8 @@
 const express = require('express');
 const fileRoutes = express.Router();
 const { verifyToken } = require('../middleware/verifyToken');
+const Job = require('../models/Job');
+const { translateText } = require('../services/googleCloudService');
 
 const fileController = require('../controllers/fileController');
 
@@ -16,5 +18,8 @@ fileRoutes.put('/files/:jobId/rename', fileController.renameJob);
 fileRoutes.post('/files/:jobId/retry', fileController.retryJob);
 
 fileRoutes.get('/files/:jobId/download/:format', fileController.downloadTranscript);
+
+// Endpoint dịch thủ công
+fileRoutes.post('/files/:jobId/translate', fileController.translateJob);
 
 module.exports = fileRoutes;

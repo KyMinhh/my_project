@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     Container, Box, Paper, Typography, Button, Stack, CircularProgress, Alert,
     Divider, Checkbox, FormControlLabel, IconButton, Chip,
-    Menu, MenuItem, ListItemIcon, Tooltip, Fade
+    Menu, MenuItem, ListItemIcon, Tooltip, Fade, Switch, Dialog,
+    DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -13,11 +14,14 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import TextFormatIcon from '@mui/icons-material/TextFields';
 import DataObjectIcon from '@mui/icons-material/DataObject';
+import TranslateIcon from '@mui/icons-material/Translate';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 
-import { JobDetail, GetJobDetailsResponse, Segment, ExtractedClipInfo, SegmentTime } from '../types/fileTypes';
-import { getJobDetailsApi, extractMultipleVideoSegmentsApi } from '../services/fileApi';
+import { JobDetail, GetJobDetailsResponse, Segment, ExtractedClipInfo, SegmentTime, TranslatedTranscript } from '../types/fileTypes';
+import { getJobDetailsApi, extractMultipleVideoSegmentsApi, translateJobApi } from '../services/fileApi';
 import { formatDuration } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import LanguageSelector, { getLanguageName } from '../components/LanguageSelector';
 
 // --- Cấu hình lại format timestamp
 const formatTimestamp = (timestamp: string | undefined): string => {
@@ -55,6 +59,14 @@ const TranscriptDetailPage: React.FC = () => {
     const [clipMessage, setClipMessage] = useState<{ type: 'error' | 'warning' | 'success', text: string } | null>(null);
     const [generatedClips, setGeneratedClips] = useState<ExtractedClipInfo[]>([]);
 
+    // Translation states
+    const [showTranslateDialog, setShowTranslateDialog] = useState<boolean>(false);
+    const [selectedTranslateLanguage, setSelectedTranslateLanguage] = useState<string>('en');
+    const [isTranslating, setIsTranslating] = useState<boolean>(false);
+    const [translateMessage, setTranslateMessage] = useState<{ type: 'error' | 'warning' | 'success', text: string } | null>(null);
+    const [showTranslatedText, setShowTranslatedText] = useState<boolean>(false);
+    const [currentTranslation, setCurrentTranslation] = useState<TranslatedTranscript | null>(null);
+
     // --- Authentication check ---
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
@@ -72,11 +84,17 @@ const TranscriptDetailPage: React.FC = () => {
             setIsLoading(true);
             setError(null); setPlayableVideoUrl(null);
             setSelectedSegments([]); setGeneratedClips([]); setClipMessage(null);
+            setTranslateMessage(null); setShowTranslatedText(false); setCurrentTranslation(null);
 
             try {
                 const response: GetJobDetailsResponse = await getJobDetailsApi(jobId);
                 if (response.success && response.data) {
                     setJobData(response.data);
+                    // Check if there's existing translation
+                    if (response.data.translatedTranscript && response.data.translatedTranscript.length > 0) {
+                        const latestTranslation = response.data.translatedTranscript[response.data.translatedTranscript.length - 1];
+                        setCurrentTranslation(latestTranslation);
+                    }
                     if (response.data.videoUrl) {
                         setPlayableVideoUrl(
                             response.data.videoUrl.startsWith('http') ? response.data.videoUrl
@@ -140,6 +158,82 @@ const TranscriptDetailPage: React.FC = () => {
         navigator.clipboard.writeText(shareableLink)
             .then(() => alert("Đã copy link!"))
             .catch(() => alert("Copy thất bại"));
+    };
+
+    // Translation handlers
+    const handleOpenTranslateDialog = () => {
+        setShowTranslateDialog(true);
+        setTranslateMessage(null);
+    };
+
+    const handleCloseTranslateDialog = () => {
+        setShowTranslateDialog(false);
+        setSelectedTranslateLanguage('en');
+    };
+
+    const handleTranslateJob = async () => {
+        if (!jobData || !jobData._id || !selectedTranslateLanguage) {
+            setTranslateMessage({ type: 'error', text: 'Thiếu thông tin để dịch!' });
+            return;
+        }
+
+        setIsTranslating(true);
+        setTranslateMessage(null);
+
+        try {
+            const response = await translateJobApi(jobData._id, selectedTranslateLanguage);
+            if (response.success && response.data) {
+                setTranslateMessage({ type: 'success', text: `Đã dịch thành công sang ${getLanguageName(selectedTranslateLanguage)}!` });
+                
+                // Create new translation object
+                const newTranslation: TranslatedTranscript = {
+                    language: selectedTranslateLanguage,
+                    segments: response.data.translatedTranscript, // Fix: use translatedTranscript instead of translatedSegments
+                    translatedAt: new Date().toISOString()
+                };
+                
+                setCurrentTranslation(newTranslation);
+                setShowTranslatedText(true);
+                
+                // Update jobData with new translation
+                setJobData(prev => {
+                    if (!prev) return prev;
+                    const updatedTranslations = prev.translatedTranscript || [];
+                    return {
+                        ...prev,
+                        translatedTranscript: [...updatedTranslations, newTranslation]
+                    };
+                });
+                
+                // Close dialog after successful translation
+                setTimeout(() => {
+                    setShowTranslateDialog(false);
+                }, 1500);
+            } else {
+                setTranslateMessage({ type: 'error', text: response.message || 'Dịch thất bại!' });
+            }
+        } catch (error: any) {
+            setTranslateMessage({ type: 'error', text: error.message || 'Lỗi khi dịch transcript!' });
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
+    const handleToggleTranslation = (checked: boolean) => {
+        setShowTranslatedText(checked);
+    };
+
+    // Get current segments to display (original or translated)
+    const getCurrentSegments = (): Segment[] => {
+        if (showTranslatedText && currentTranslation?.segments) {
+            return currentTranslation.segments.map(seg => ({
+                start: seg.start,
+                end: seg.end,
+                text: seg.translatedText,
+                speakerTag: seg.speakerTag
+            }));
+        }
+        return jobData?.segments || [];
     };
 
     // --- UI ---
@@ -220,6 +314,14 @@ const TranscriptDetailPage: React.FC = () => {
                                         </IconButton>
                                     </span>
                                 </Tooltip>
+                                <Tooltip title="Dịch transcript">
+                                    <span>
+                                        <IconButton onClick={handleOpenTranslateDialog} size="small"
+                                            disabled={jobData.status !== 'success' || !jobData.segments || jobData.segments.length === 0}>
+                                            <TranslateIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
                                 <Menu
                                     anchorEl={anchorElDownload} open={openDownloadMenu} onClose={handleCloseDownloadMenu}
                                     PaperProps={{ sx: { bgcolor: '#2a2f4a', color: 'text.primary' } }}>
@@ -235,21 +337,50 @@ const TranscriptDetailPage: React.FC = () => {
                                 Lần cập nhật: {formatTimestamp(jobData.updatedAt)}
                             </Typography>
 
-                            {/* Chức năng cut clip */}
+                            {/* Chức năng cut clip và translation toggle */}
                             {jobData.status === 'success' && jobData.segments?.length > 0 && (
-                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-                                    <Button
-                                        variant="contained" color="secondary" size="small"
-                                        startIcon={isLoadingClips ? <CircularProgress size={16} /> : <ContentCutIcon fontSize="small" />}
-                                        onClick={handleCreateClips}
-                                        disabled={selectedSegments.length === 0 || isLoadingClips}
-                                    >
-                                        Cắt video (clip)
-                                    </Button>
-                                    <FormControlLabel
-                                        control={<Checkbox checked={showTimestamps} onChange={(e) => setShowTimestamps(e.target.checked)} size="small" />}
-                                        label="Hiện timestamp"
-                                    />
+                                <Stack spacing={2}>
+                                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                                        <Button
+                                            variant="contained" color="secondary" size="small"
+                                            startIcon={isLoadingClips ? <CircularProgress size={16} /> : <ContentCutIcon fontSize="small" />}
+                                            onClick={handleCreateClips}
+                                            disabled={selectedSegments.length === 0 || isLoadingClips}
+                                        >
+                                            Cắt video (clip)
+                                        </Button>
+                                        <FormControlLabel
+                                            control={<Checkbox checked={showTimestamps} onChange={(e) => setShowTimestamps(e.target.checked)} size="small" />}
+                                            label="Hiện timestamp"
+                                        />
+                                    </Stack>
+                                    
+                                    {/* Translation toggle */}
+                                    {currentTranslation && (
+                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ 
+                                            bgcolor: 'action.hover', 
+                                            p: 1.5, 
+                                            borderRadius: 2,
+                                            border: '1px solid',
+                                            borderColor: 'divider'
+                                        }}>
+                                            <CompareArrowsIcon fontSize="small" color="primary" />
+                                            <Typography variant="body2" sx={{ flexGrow: 1 }}>
+                                                Bản dịch {getLanguageName(currentTranslation?.language)}
+                                            </Typography>
+                                            <FormControlLabel
+                                                control={
+                                                    <Switch 
+                                                        checked={showTranslatedText} 
+                                                        onChange={(e) => handleToggleTranslation(e.target.checked)}
+                                                        size="small"
+                                                        color="primary"
+                                                    />
+                                                }
+                                                label={showTranslatedText ? "Bản dịch" : "Gốc"}
+                                            />
+                                        </Stack>
+                                    )}
                                 </Stack>
                             )}
 
@@ -265,7 +396,7 @@ const TranscriptDetailPage: React.FC = () => {
                                 )}
                                 {jobData.status === 'success' && jobData.segments?.length > 0 && (
                                     <Stack spacing={1.2}>
-                                        {jobData.segments.map((segment, idx) => {
+                                        {getCurrentSegments().map((segment, idx) => {
                                             const isSelected = selectedSegments.some(s => s.start === segment.start && s.end === segment.end);
                                             return (
                                                 <Paper
@@ -291,9 +422,24 @@ const TranscriptDetailPage: React.FC = () => {
                                                                 [{formatDuration(segment.start)} - {formatDuration(segment.end)}]
                                                             </Typography>
                                                         )}
-                                                        <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 500 }}>
+                                                        <Typography variant="body2" sx={{ 
+                                                            color: 'text.primary', 
+                                                            fontWeight: 500,
+                                                            fontStyle: showTranslatedText && currentTranslation ? 'italic' : 'normal'
+                                                        }}>
                                                             {segment.text}
                                                         </Typography>
+                                                        {/* Show original text when viewing translation */}
+                                                        {showTranslatedText && currentTranslation && (
+                                                            <Typography variant="caption" sx={{ 
+                                                                color: 'text.secondary', 
+                                                                display: 'block', 
+                                                                mt: 0.5,
+                                                                fontSize: '0.75rem'
+                                                            }}>
+                                                                Gốc: {jobData?.segments?.[idx]?.text || ''}
+                                                            </Typography>
+                                                        )}
                                                     </Box>
                                                 </Paper>
                                             );
@@ -324,6 +470,67 @@ const TranscriptDetailPage: React.FC = () => {
                     </Paper>
                 )}
                 {!isLoading && !error && !jobData && (<Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>Không tìm thấy job này.</Typography>)}
+                
+                {/* Translation Dialog */}
+                <Dialog open={showTranslateDialog} onClose={handleCloseTranslateDialog} maxWidth="sm" fullWidth>
+                    <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TranslateIcon color="primary" />
+                        Dịch Transcript
+                    </DialogTitle>
+                    <DialogContent>
+                        <Stack spacing={3} sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Chọn ngôn ngữ bạn muốn dịch transcript này:
+                            </Typography>
+                            
+                            <LanguageSelector
+                                value={selectedTranslateLanguage}
+                                onChange={setSelectedTranslateLanguage}
+                                disabled={isTranslating}
+                                label="Ngôn ngữ đích"
+                                size="medium"
+                            />
+                            
+                            {translateMessage && (
+                                <Alert severity={translateMessage.type}>
+                                    {translateMessage.text}
+                                </Alert>
+                            )}
+                            
+                            {jobData?.translatedTranscript && jobData.translatedTranscript.length > 0 && (
+                                <Alert severity="info" sx={{ mt: 2 }}>
+                                    <Typography variant="body2" fontWeight={500} gutterBottom>
+                                        Các bản dịch có sẵn:
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                                        {jobData.translatedTranscript.map((trans, idx) => (
+                                            <Chip
+                                                key={idx}
+                                                label={getLanguageName(trans?.language)}
+                                                size="small"
+                                                variant="outlined"
+                                                color="primary"
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Alert>
+                            )}
+                        </Stack>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseTranslateDialog} disabled={isTranslating}>
+                            Hủy
+                        </Button>
+                        <Button
+                            onClick={handleTranslateJob}
+                            variant="contained"
+                            disabled={isTranslating || !selectedTranslateLanguage}
+                            startIcon={isTranslating ? <CircularProgress size={16} /> : <TranslateIcon />}
+                        >
+                            {isTranslating ? 'Đang dịch...' : 'Dịch ngay'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </Container>
         </Box>
     );
