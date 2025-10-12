@@ -2,6 +2,7 @@ const Job = require('../models/Job');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs').promises;
+const { translateText } = require('../services/googleCloudService');
 
 
 exports.getRecentFiles = async (req, res, next) => {
