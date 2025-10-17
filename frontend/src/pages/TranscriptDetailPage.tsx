@@ -16,12 +16,15 @@ import TextFormatIcon from '@mui/icons-material/TextFields';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import TranslateIcon from '@mui/icons-material/Translate';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import SubtitlesIcon from '@mui/icons-material/Subtitles';
 
 import { JobDetail, GetJobDetailsResponse, Segment, ExtractedClipInfo, SegmentTime, TranslatedTranscript } from '../types/fileTypes';
 import { getJobDetailsApi, extractMultipleVideoSegmentsApi, translateJobApi } from '../services/fileApi';
 import { formatDuration } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSelector, { getLanguageName } from '../components/LanguageSelector';
+import SubtitleExporter from '../components/SubtitleExporter';
+import { SubtitleSegment } from '../services/subtitleApi';
 
 // --- Cấu hình lại format timestamp
 const formatTimestamp = (timestamp: string | undefined): string => {
@@ -66,6 +69,9 @@ const TranscriptDetailPage: React.FC = () => {
     const [translateMessage, setTranslateMessage] = useState<{ type: 'error' | 'warning' | 'success', text: string } | null>(null);
     const [showTranslatedText, setShowTranslatedText] = useState<boolean>(false);
     const [currentTranslation, setCurrentTranslation] = useState<TranslatedTranscript | null>(null);
+
+    // Subtitle states
+    const [showSubtitleExporter, setShowSubtitleExporter] = useState<boolean>(false);
 
     // --- Authentication check ---
     useEffect(() => {
@@ -236,6 +242,44 @@ const TranscriptDetailPage: React.FC = () => {
         return jobData?.segments || [];
     };
 
+    // Convert segments to subtitle format
+    const convertToSubtitleSegments = (segments: Segment[]): SubtitleSegment[] => {
+        return segments.map(seg => ({
+            start: seg.start,
+            end: seg.end,
+            text: seg.text
+        }));
+    };
+
+    // Get multi-language transcripts for subtitle export
+    const getMultiLanguageTranscripts = (): { [language: string]: SubtitleSegment[] } | undefined => {
+        if (!jobData) return undefined;
+        
+        const transcripts: { [language: string]: SubtitleSegment[] } = {};
+        
+        // Add original transcript
+        if (jobData.segments && Array.isArray(jobData.segments)) {
+            transcripts['original'] = convertToSubtitleSegments(jobData.segments);
+        }
+        
+        // Add translated transcripts
+        if (jobData.translatedTranscript && Array.isArray(jobData.translatedTranscript) && jobData.translatedTranscript.length > 0) {
+            jobData.translatedTranscript.forEach(translation => {
+                // Safety check: ensure segments exists and is an array
+                if (translation && translation.segments && Array.isArray(translation.segments)) {
+                    const translatedSegments = translation.segments.map(seg => ({
+                        start: seg.start,
+                        end: seg.end,
+                        text: seg.translatedText || seg.text || ''
+                    }));
+                    transcripts[translation.language] = translatedSegments;
+                }
+            });
+        }
+        
+        return Object.keys(transcripts).length > 0 ? transcripts : undefined;
+    };
+
     // --- UI ---
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -319,6 +363,15 @@ const TranscriptDetailPage: React.FC = () => {
                                         <IconButton onClick={handleOpenTranslateDialog} size="small"
                                             disabled={jobData.status !== 'success' || !jobData.segments || jobData.segments.length === 0}>
                                             <TranslateIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                                <Tooltip title="Export Subtitles">
+                                    <span>
+                                        <IconButton onClick={() => setShowSubtitleExporter(true)} size="small"
+                                            disabled={jobData.status !== 'success' || !jobData.segments || jobData.segments.length === 0}
+                                            color="secondary">
+                                            <SubtitlesIcon />
                                         </IconButton>
                                     </span>
                                 </Tooltip>
@@ -531,6 +584,17 @@ const TranscriptDetailPage: React.FC = () => {
                         </Button>
                     </DialogActions>
                 </Dialog>
+
+                {/* Subtitle Exporter */}
+                {jobData && jobData.segments && (
+                    <SubtitleExporter
+                        open={showSubtitleExporter}
+                        onClose={() => setShowSubtitleExporter(false)}
+                        segments={convertToSubtitleSegments(getCurrentSegments())}
+                        videoPath={jobData.videoUrl || undefined}
+                        transcripts={getMultiLanguageTranscripts()}
+                    />
+                )}
             </Container>
         </Box>
     );

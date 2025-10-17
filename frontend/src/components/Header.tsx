@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -80,6 +80,9 @@ const Header: React.FC = () => {
             <>
               <Button color="inherit" component={Link} to="/dashboard">
                 {t('Dashboard')}
+              </Button>
+              <Button color="inherit" component={Link} to="/subtitles">
+                Subtitles
               </Button>     
               <IconButton
                 size="large"

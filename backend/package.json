@@ -29,6 +29,7 @@
     "path": "^0.12.7",
     "socket.io": "^4.8.1",
     "string-similarity": "^4.0.4",
+    "uuid": "^8.3.2",
     "ytdl-core": "^4.11.5"
   }
 }

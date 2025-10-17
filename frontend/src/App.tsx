@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
+import SubtitlePage from './pages/SubtitlePage';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -31,6 +32,7 @@ function App() {
               <Route path="/files" element={<RecentFilesPage />} />
               <Route path="/transcript/:jobId" element={<TranscriptDetailPage />} />
               <Route path="/collaborate/:transcriptId" element={<CollaborativeTranscriptPage />} />
+              <Route path="/subtitles" element={<SubtitlePage />} />
             </Routes>
           </Router>
         </AuthProvider>

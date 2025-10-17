@@ -21,6 +21,7 @@ const authRoutes = require('./routes/auth.route'); // Đảm bảo bạn đã im
 const profileRoutes = require('./routes/profileRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const collaborationRoutes = require('./routes/collaborationRoutes');
+const subtitleRoutes = require('./routes/subtitleRoutes');
 const { verifyToken } = require('./middleware/verifyToken');
 
 const app = express();
@@ -71,6 +72,7 @@ app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use('/api', dashboardRoutes);
 app.use('/api/collaboration', collaborationRoutes);
+app.use('/api/subtitles', subtitleRoutes);
 
 
 app.get("/", (req, res) => {
