@@ -25,6 +25,9 @@ import { useAuth } from '../contexts/AuthContext';
 import LanguageSelector, { getLanguageName } from '../components/LanguageSelector';
 import SubtitleExporter from '../components/SubtitleExporter';
 import { SubtitleSegment } from '../services/subtitleApi';
+import SearchBar, { SearchOptions } from '../components/SearchBar';
+import HighlightedText from '../components/HighlightedText';
+import SearchOptionsComponent from '../components/SearchOptions';
 
 // --- Cấu hình lại format timestamp
 const formatTimestamp = (timestamp: string | undefined): string => {
@@ -72,6 +75,27 @@ const TranscriptDetailPage: React.FC = () => {
 
     // Subtitle states
     const [showSubtitleExporter, setShowSubtitleExporter] = useState<boolean>(false);
+
+    // Search states
+    interface MatchPosition {
+        start: number;
+        end: number;
+    }
+    interface SearchResult {
+        segmentIndex: number;
+        segment: Segment;
+        matchPositions: MatchPosition[];
+    }
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [currentResultIndex, setCurrentResultIndex] = useState<number>(0);
+    const [searchOptions, setSearchOptions] = useState<SearchOptions>({
+        caseSensitive: false,
+        wholeWord: false,
+        filterBySpeaker: null
+    });
+    const [anchorElSearchOptions, setAnchorElSearchOptions] = useState<null | HTMLElement>(null);
+    const openSearchOptions = Boolean(anchorElSearchOptions);
 
     // --- Authentication check ---
     useEffect(() => {
@@ -228,6 +252,133 @@ const TranscriptDetailPage: React.FC = () => {
     const handleToggleTranslation = (checked: boolean) => {
         setShowTranslatedText(checked);
     };
+
+    // Search handlers
+    const performSearch = (query: string) => {
+        setSearchQuery(query);
+        
+        if (!query.trim()) {
+            setSearchResults([]);
+            setCurrentResultIndex(0);
+            return;
+        }
+
+        const results: SearchResult[] = [];
+        const segments = getCurrentSegments();
+        
+        segments.forEach((segment, index) => {
+            if (searchOptions.filterBySpeaker !== null && 
+                segment.speakerTag !== searchOptions.filterBySpeaker) {
+                return;
+            }
+
+            let searchText = segment.text;
+            let queryText = query;
+
+            if (!searchOptions.caseSensitive) {
+                searchText = searchText.toLowerCase();
+                queryText = queryText.toLowerCase();
+            }
+
+            const matchPositions: MatchPosition[] = [];
+            let lastIndex = 0;
+            let idx = searchText.indexOf(queryText, lastIndex);
+
+            while (idx !== -1) {
+
+                if (searchOptions.wholeWord) {
+                    const before = idx > 0 ? searchText[idx - 1] : ' ';
+                    const after = idx + queryText.length < searchText.length 
+                        ? searchText[idx + queryText.length] 
+                        : ' ';
+                    
+                    if (!/\s/.test(before) || !/\s/.test(after)) {
+                        lastIndex = idx + 1;
+                        continue;
+                    }
+                }
+
+                matchPositions.push({
+                    start: idx,
+                    end: idx + queryText.length
+                });
+                lastIndex = idx + queryText.length;
+                idx = searchText.indexOf(queryText, lastIndex);
+            }
+
+            if (matchPositions.length > 0) {
+                results.push({
+                    segmentIndex: index,
+                    segment,
+                    matchPositions
+                });
+            }
+        });
+
+        setSearchResults(results);
+        setCurrentResultIndex(results.length > 0 ? 0 : 0);
+        
+        if (results.length > 0) {
+            jumpToResult(0, results);
+        }
+    };
+
+    const jumpToResult = (resultIndex: number, results: SearchResult[] = searchResults) => {
+        if (resultIndex < 0 || resultIndex >= results.length) return;
+
+        const result = results[resultIndex];
+        setCurrentResultIndex(resultIndex);
+
+        const segmentElement = document.getElementById(`segment-${result.segmentIndex}`);
+        if (segmentElement) {
+            segmentElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+
+        handleSeek(result.segment.start);
+    };
+
+    const handleNextResult = () => {
+        if (currentResultIndex < searchResults.length - 1) {
+            jumpToResult(currentResultIndex + 1);
+        }
+    };
+
+    const handlePrevResult = () => {
+        if (currentResultIndex > 0) {
+            jumpToResult(currentResultIndex - 1);
+        }
+    };
+
+    const handleOpenSearchOptions = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorElSearchOptions(event.currentTarget);
+    };
+
+    const handleCloseSearchOptions = () => {
+        setAnchorElSearchOptions(null);
+    };
+
+    const handleSearchOptionsChange = (newOptions: SearchOptions) => {
+        setSearchOptions(newOptions);
+    };
+
+    // Re-trigger search when options change
+    React.useEffect(() => {
+        if (searchQuery) {
+            performSearch(searchQuery);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchOptions]);
+
+    // Clear search when switching translation
+    React.useEffect(() => {
+        if (searchQuery) {
+            performSearch(searchQuery);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showTranslatedText, currentTranslation]);
 
     // Get current segments to display (original or translated)
     const getCurrentSegments = (): Segment[] => {
@@ -399,6 +550,7 @@ const TranscriptDetailPage: React.FC = () => {
                                             startIcon={isLoadingClips ? <CircularProgress size={16} /> : <ContentCutIcon fontSize="small" />}
                                             onClick={handleCreateClips}
                                             disabled={selectedSegments.length === 0 || isLoadingClips}
+                                            sx={{ mr: 1 }}
                                         >
                                             Cắt video (clip)
                                         </Button>
@@ -439,6 +591,38 @@ const TranscriptDetailPage: React.FC = () => {
 
                             <Divider sx={{ mb: 2 }} />
 
+                            {/* Search Bar */}
+                            {jobData.status === 'success' && jobData.segments && jobData.segments.length > 0 && (
+                                <>
+                                    <SearchBar
+                                        onSearch={performSearch}
+                                        resultsCount={searchResults.length}
+                                        currentIndex={currentResultIndex}
+                                        onNext={handleNextResult}
+                                        onPrev={handlePrevResult}
+                                        onOptionsToggle={handleOpenSearchOptions}
+                                    />
+                                    <SearchOptionsComponent
+                                        anchorEl={anchorElSearchOptions}
+                                        open={openSearchOptions}
+                                        onClose={handleCloseSearchOptions}
+                                        options={searchOptions}
+                                        onOptionsChange={handleSearchOptionsChange}
+                                        speakerTags={
+                                            jobData.segments
+                                                ? Array.from(
+                                                    new Set(
+                                                        jobData.segments
+                                                            .map(s => s.speakerTag)
+                                                            .filter((t): t is number => t !== undefined)
+                                                    )
+                                                )
+                                                : []
+                                        }
+                                    />
+                                </>
+                            )}
+
                             {/* Transcript hiển thị từng đoạn */}
                             <Box sx={{ flexGrow: 1, overflowY: 'auto', maxHeight: { xs: 270, sm: 350, md: 420 } }}>
                                 {jobData.status === 'processing' && (
@@ -447,19 +631,41 @@ const TranscriptDetailPage: React.FC = () => {
                                         <Typography sx={{ color: 'text.secondary' }}>Đang xử lý transcript...</Typography>
                                     </Box>
                                 )}
+                                
+                                {/* Empty search results */}
+                                {searchQuery && searchResults.length === 0 && jobData.status === 'success' && (
+                                    <Alert severity="info" sx={{ mt: 2 }}>
+                                        <Typography variant="body2" fontWeight={500} gutterBottom>
+                                            Không tìm thấy "{searchQuery}"
+                                        </Typography>
+                                        <Typography variant="caption">
+                                            {searchOptions.caseSensitive && '• Đang bật phân biệt hoa/thường\n'}
+                                            {searchOptions.wholeWord && '• Đang bật khớp từ nguyên vẹn\n'}
+                                            {searchOptions.filterBySpeaker !== null && `• Đang lọc người nói ${searchOptions.filterBySpeaker}\n`}
+                                            Thử tắt một số tùy chọn hoặc thay đổi từ khóa
+                                        </Typography>
+                                    </Alert>
+                                )}
+                                
                                 {jobData.status === 'success' && jobData.segments?.length > 0 && (
                                     <Stack spacing={1.2}>
                                         {getCurrentSegments().map((segment, idx) => {
                                             const isSelected = selectedSegments.some(s => s.start === segment.start && s.end === segment.end);
+                                            const searchResult = searchResults.find(r => r.segmentIndex === idx);
+                                            const isActiveResult = searchResults[currentResultIndex]?.segmentIndex === idx;
+                                            
                                             return (
                                                 <Paper
+                                                    id={`segment-${idx}`}
                                                     key={`${segment.start}-${segment.end}-${idx}`}
                                                     elevation={isSelected ? 2 : 0}
                                                     sx={{
                                                         display: 'flex', alignItems: 'center',
-                                                        p: 1.2, cursor: 'pointer', bgcolor: isSelected ? 'action.selected' : 'transparent',
-                                                        '&:hover': { bgcolor: 'action.hover' }, borderRadius: 2,
-                                                        border: isSelected ? '1.5px solid #6a6dff' : '1.5px solid transparent',
+                                                        p: 1.2, cursor: 'pointer', 
+                                                        bgcolor: isActiveResult ? 'action.focus' : isSelected ? 'action.selected' : 'transparent',
+                                                        '&:hover': { bgcolor: 'action.hover' }, 
+                                                        borderRadius: 2,
+                                                        border: isActiveResult ? '2px solid #ffd700' : isSelected ? '1.5px solid #6a6dff' : '1.5px solid transparent',
                                                         transition: 'all 0.15s'
                                                     }}
                                                 >
@@ -480,7 +686,12 @@ const TranscriptDetailPage: React.FC = () => {
                                                             fontWeight: 500,
                                                             fontStyle: showTranslatedText && currentTranslation ? 'italic' : 'normal'
                                                         }}>
-                                                            {segment.text}
+                                                            <HighlightedText
+                                                                text={segment.text}
+                                                                searchQuery={searchQuery}
+                                                                isActive={isActiveResult}
+                                                                matchPositions={searchResult?.matchPositions || []}
+                                                            />
                                                         </Typography>
                                                         {/* Show original text when viewing translation */}
                                                         {showTranslatedText && currentTranslation && (
