@@ -10,6 +10,8 @@ import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import DashboardPage from './pages/DashboardPage';
 import SubtitlePage from './pages/SubtitlePage';
+import AdminPanel from './pages/AdminPanel';
+import AdminRoute from './components/AdminRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -33,6 +35,7 @@ function App() {
               <Route path="/transcript/:jobId" element={<TranscriptDetailPage />} />
               <Route path="/collaborate/:transcriptId" element={<CollaborativeTranscriptPage />} />
               <Route path="/subtitles" element={<SubtitlePage />} />
+              <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
             </Routes>
           </Router>
         </AuthProvider>

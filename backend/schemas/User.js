@@ -82,6 +82,13 @@ const userSchema = new mongoose.Schema(
 			following: { type: Number, default: 0 },
 			profileViews: { type: Number, default: 0 }
 		},
+		// Role
+		role: {
+			type: String,
+			enum: ['user', 'admin', 'moderator', 'author'],
+			default: 'user',
+			required: true
+		},
 		// Original fields
 		lastLogin: {
 			type: Date,
@@ -95,6 +102,15 @@ const userSchema = new mongoose.Schema(
 		resetPasswordExpiresAt: Date,
 		verificationToken: String,
 		verificationTokenExpiresAt: Date,
+		// Soft Delete
+		isDeleted: {
+			type: Boolean,
+			default: false
+		},
+		deletedAt: {
+			type: Date,
+			default: null
+		}
 	},
 	{ timestamps: true } 
 );

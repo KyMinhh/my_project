@@ -267,33 +267,6 @@ const LoginPage: React.FC = () => {
                                     >
                                         {isLoading ? 'Signing In...' : 'Sign In'}
                                     </Button>
-
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        onClick={handleCreateTestUser}
-                                        disabled={isLoading}
-                                        sx={{
-                                            py: 1.5,
-                                            mt: 2,
-                                            borderRadius: 2,
-                                            fontSize: '1rem',
-                                            fontWeight: 500,
-                                            textTransform: 'none',
-                                            borderColor: theme.palette.primary.main,
-                                            color: theme.palette.primary.main,
-                                            '&:hover': {
-                                                borderColor: theme.palette.primary.dark,
-                                                background: alpha(theme.palette.primary.main, 0.1),
-                                            },
-                                            '&:disabled': {
-                                                borderColor: alpha(theme.palette.primary.main, 0.3),
-                                                color: alpha(theme.palette.primary.main, 0.3),
-                                            }
-                                        }}
-                                    >
-                                        Create Test User & Login
-                                    </Button>
                                 </Stack>
                             </Box>
 

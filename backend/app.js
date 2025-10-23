@@ -16,7 +16,9 @@ const profileRoutes = require('./routes/profileRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const subtitleRoutes = require('./routes/subtitleRoutes');
 const transcriptionRoutes = require('./routes/transcriptionRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const { verifyToken } = require('./middleware/verifyToken');
+const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
 const server = http.createServer(app);
@@ -59,21 +61,18 @@ app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use('/api', dashboardRoutes);
 app.use('/api/subtitles', subtitleRoutes);
+app.use('/api/admin', adminRoutes);
 
 
 app.get("/", (req, res) => {
     res.send("Welcome to the Video Transcription API with Socket.IO");
 });
 
+// 404 Not Found Handler
+app.use(notFound);
 
-app.use((err, req, res, next) => {
-    console.error("❌ Global Error Handler:", err.stack);
-    res.status(err.status || 500).json({
-        success: false,
-        message: err.message || 'Internal Server Error',
-        details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
-});
+// Global Error Handler
+app.use(errorHandler);
 
 io.on('connection', (socket) => {
     console.log('🔌 A user connected to Socket.IO:', socket.id);
@@ -82,11 +81,6 @@ io.on('connection', (socket) => {
         console.log('👋 User disconnected:', socket.id);
     });
 });
-
-// Cleanup stale presence records every 5 minutes
-setInterval(() => {
-    collaboration.cleanupStalePresence();
-}, 5 * 60 * 1000);
 
 // Export app, server, and io for use in bin/www
 module.exports = { app, server, io };
