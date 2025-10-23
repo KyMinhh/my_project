@@ -9,6 +9,7 @@ import {
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import TranslateIcon from '@mui/icons-material/Translate';
+import { useTranslation } from 'react-i18next';
 
 
 interface FileUploadZoneProps {
@@ -70,6 +71,7 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
     languageOptionValue,
     handleLanguageOptionChange
 }) => {
+    const { t } = useTranslation();
     const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
         onDrop,
         accept: {
@@ -106,13 +108,13 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
 
                 <>
                     <CloudUploadIcon sx={{ fontSize: 60, color: '#6a6dff', mb: 2 }} />
-                    {isDragActive ? (<Typography>Drop the file here ...</Typography>)
-                        : (<Typography>Click button below or drag and drop</Typography>)}
+                    {isDragActive ? (<Typography>{t('Drop the file here ...')}</Typography>)
+                        : (<Typography>{t('Click button below or drag and drop')}</Typography>)}
                     <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                         mp3, mp4, mpeg, mpga, m4a, wav, ogg
                     </Typography>
                     <Button variant="contained" onClick={open} sx={{ mt: 2 }} disabled={isLoading}> { }
-                        Choose File
+                        {t('Choose File')}
                     </Button>
                 </>
             ) : (
@@ -123,14 +125,14 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
                         {selectedFile.name}
                     </Typography>
                     <Stack direction="row" spacing={2} sx={{ mb: 1 }} flexWrap="wrap">
-                        <Typography variant="body2">Size: {formatBytes(selectedFile.size)}</Typography>
+                        <Typography variant="body2">{t('Size')}: {formatBytes(selectedFile.size)}</Typography>
                         { }
                         <Typography variant="body2">
-                            Duration: {isLoadingDuration ? <Skeleton variant="text" width={50} sx={{ display: 'inline-block', bgcolor: 'grey.700' }} /> : formatDuration(fileDuration)}
+                            {t('Duration')}: {isLoadingDuration ? <Skeleton variant="text" width={50} sx={{ display: 'inline-block', bgcolor: 'grey.700' }} /> : formatDuration(fileDuration)}
                         </Typography>
                     </Stack>
                     <Typography variant="body2" sx={{ mb: 2 }}>
-                        Estimated time: {isLoadingDuration ? <Skeleton variant="text" width={50} sx={{ display: 'inline-block', bgcolor: 'grey.700' }} /> : formatDuration(estimatedTime)}
+                        {t('Estimated time')}: {isLoadingDuration ? <Skeleton variant="text" width={50} sx={{ display: 'inline-block', bgcolor: 'grey.700' }} /> : formatDuration(estimatedTime)}
                     </Typography>
                     { }
 
@@ -142,14 +144,14 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
                             disabled={isLoading || isLoadingDuration}
                             sx={{ bgcolor: '#6a6dff', '&:hover': { bgcolor: '#5a5cdd' }, flexShrink: 0 }}
                             startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null} >
-                            {isLoading ? 'Converting...' : 'Convert'}
+                            {isLoading ? t('Converting...') : t('Convert')}
                         </Button>
                         <FormControlLabel
                             control={<Checkbox checked={includeOptions} onChange={handleOptionsChange} size="small"
                                 sx={{ color: '#a9b1c7', '&.Mui-checked': { color: '#6a6dff' } }}
 
                                 disabled={isLoading || isLoadingDuration} />}
-                            label={<Typography variant="body2">Convert Options</Typography>}
+                            label={<Typography variant="body2">{t('Convert Options')}</Typography>}
                             sx={{ color: '#a9b1c7', mr: 'auto' }} />
                     </Stack>
 
@@ -159,18 +161,18 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
                             <Stack spacing={1}>
                                 { }
                                 <FormControl fullWidth variant="outlined" size="small">
-                                    <Stack direction="row" spacing={1}><TranslateIcon fontSize="small" /><Typography variant='body2'>Language</Typography></Stack>
+                                    <Stack direction="row" spacing={1}><TranslateIcon fontSize="small" /><Typography variant='body2'>{t('Language')}</Typography></Stack>
                                     <Select
                                         value={languageOptionValue} onChange={handleLanguageOptionChange}
 
                                         disabled={isLoading || isLoadingDuration}
                                         sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: '#4a4e6a' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#6a6dff' }, '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#6a6dff' }, '.MuiSvgIcon-root': { color: 'white' }, bgcolor: '#1a1f2e' }}
                                         MenuProps={{ PaperProps: { sx: { bgcolor: '#2a2f4a', color: 'white' } } }} >
-                                        <MenuItem value="auto">Auto Detect</MenuItem>
-                                        <MenuItem value="vi-VN">Vietnamese</MenuItem>
-                                        <MenuItem value="en-US">English (US)</MenuItem>
+                                        <MenuItem value="auto">{t('Auto Detect')}</MenuItem>
+                                        <MenuItem value="vi-VN">{t('Vietnamese')}</MenuItem>
+                                        <MenuItem value="en-US">{t('English (US)')}</MenuItem>
                                     </Select>
-                                    <Typography variant="caption" sx={{ mt: 0.5 }}>will spend more time</Typography>
+                                    <Typography variant="caption" sx={{ mt: 0.5 }}>{t('will spend more time')}</Typography>
                                 </FormControl>
                             </Stack>
                         </Box>

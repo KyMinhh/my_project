@@ -9,12 +9,14 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import TranslateIcon from '@mui/icons-material/Translate';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useTranslation } from 'react-i18next';
 
 import JobProgressDialog from '../components/JobProgressDialog';
 import { transcribeYoutubeUrlApi } from '../services/fileApi';
 import { TranscribeInitiateResponse } from '../types/fileTypes';
 
 const YoutubePage: React.FC = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -42,7 +44,7 @@ const YoutubePage: React.FC = () => {
 
 
     const handleTranscribe = async () => {
-        if (!youtubeUrl) { setError('Please enter a YouTube URL.'); return; }
+        if (!youtubeUrl) { setError(t('Please enter a YouTube URL.')); return; }
 
         setIsLoading(true);
         setError(null);
@@ -89,18 +91,18 @@ const YoutubePage: React.FC = () => {
     return (
         <>
             { }
-            <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')} sx={{ m: 2, color: 'text.secondary', alignSelf: 'flex-start' }}> Back to Home </Button>
+            <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')} sx={{ m: 2, color: 'text.secondary', alignSelf: 'flex-start' }}> {t('Back to Home')} </Button>
             <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', pt: 4 }}>
                 <Container maxWidth="sm">
                     <Paper sx={{ p: { xs: 2, sm: 4 }, bgcolor: '#2a2f4a' }}>
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 3 }}>
                             <YouTubeIcon sx={{ color: 'red', fontSize: 30 }} />
-                            <Typography variant="h5" sx={{ color: 'white' }}>Transcribe YouTube Video</Typography>
+                            <Typography variant="h5" sx={{ color: 'white' }}>{t('Transcribe YouTube Video')}</Typography>
                         </Stack>
 
                         { }
                         <TextField
-                            fullWidth variant="outlined" size="small" placeholder="Paste YouTube URL here"
+                            fullWidth variant="outlined" size="small" placeholder={t('Paste YouTube URL here')}
                             value={youtubeUrl}
                             onChange={(e) => { setYoutubeUrl(e.target.value); setError(null); setSuccessMessage(null); }}
                             sx={{ mb: 2, input: { color: 'white' }, '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#4a4e6a' }, '&:hover fieldset': { borderColor: '#6a6dff' }, '&.Mui-focused fieldset': { borderColor: '#6a6dff' } } }}
@@ -108,17 +110,17 @@ const YoutubePage: React.FC = () => {
 
                         { }
                         <Box sx={{ my: 2, pt: 2, borderTop: '1px solid #4a4e6a' }}>
-                            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>Transcription Options</Typography>
+                            <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>{t('Transcription Options')}</Typography>
                             <Stack spacing={2}>
                                 <FormControl fullWidth variant="outlined" size="small">
-                                    <Stack direction="row" spacing={1}><TranslateIcon fontSize="small" /><Typography variant='body2'>Language</Typography></Stack>
+                                    <Stack direction="row" spacing={1}><TranslateIcon fontSize="small" /><Typography variant='body2'>{t('Language')}</Typography></Stack>
                                     <Select value={languageOption} onChange={handleLanguageOptionChange} disabled={isLoading} sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: '#4a4e6a' }, bgcolor: '#1a1f2e' }} MenuProps={{ PaperProps: { sx: { bgcolor: '#2a2f4a', color: 'white' } } }} >
-                                        <MenuItem value="auto">Auto Detect</MenuItem>
-                                        <MenuItem value="vi-VN">Vietnamese</MenuItem>
-                                        <MenuItem value="en-US">English (US)</MenuItem>
+                                        <MenuItem value="auto">{t('Auto Detect')}</MenuItem>
+                                        <MenuItem value="vi-VN">{t('Vietnamese')}</MenuItem>
+                                        <MenuItem value="en-US">{t('English (US)')}</MenuItem>
                                         { }
                                     </Select>
-                                    <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary' }}>Auto-detect might spend more time</Typography>
+                                    <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary' }}>{t('Auto-detect might spend more time')}</Typography>
                                 </FormControl>
                             </Stack>
                         </Box>
@@ -132,7 +134,7 @@ const YoutubePage: React.FC = () => {
                             sx={{ mt: 2 }}
                             fullWidth
                         >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Start Transcription'} { }
+                            {isLoading ? <CircularProgress size={24} color="inherit" /> : t('Start Transcription')} { }
                         </Button>
 
                         { }

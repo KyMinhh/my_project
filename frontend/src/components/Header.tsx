@@ -82,7 +82,7 @@ const Header: React.FC = () => {
                 {t('Dashboard')}
               </Button>
               <Button color="inherit" component={Link} to="/subtitles">
-                Subtitles
+                {t('Subtitles')}
               </Button>     
               <IconButton
                 size="large"
