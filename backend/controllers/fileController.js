@@ -1,4 +1,4 @@
-const Job = require('../models/Job');
+const Job = require('../schemas/Job');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs').promises;

@@ -2,7 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const jwt = require('jsonwebtoken');
-const Job = require('../models/Job');
+const Job = require('../schemas/Job');
 const { extractAudio } = require('../utils/ffmpegUtils');
 const { uploadToGCS, transcribeAudioFromGCS, translateText } = require('../services/googleCloudService');
 

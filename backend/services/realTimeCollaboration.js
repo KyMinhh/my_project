@@ -1,5 +1,5 @@
-const Presence = require('../models/Presence');
-const { User } = require('../models/User');
+const Presence = require('../schemas/Presence');
+const { User } = require('../schemas/User');
 
 class RealTimeCollaboration {
     constructor(io) {

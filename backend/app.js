@@ -62,11 +62,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.post("/api/transcribe", upload.single("video"), videoController.transcribeVideo);
 app.post("/api/transcribe-from-youtube", youtubeController.transcribeFromYoutube);
 app.post("/api/transcribe-from-tiktok", tiktokController.transcribeFromTiktok);
-
-
 app.use('/api/editor', editorRoutes);
-
-
 app.use('/api', fileRoutes);
 app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/profile", profileRoutes);

@@ -1,4 +1,4 @@
-const Job = require('../models/Job');
+const Job = require('../schemas/Job');
 // const { OpenAI } = require('openai');
 
 // const openai = new OpenAI({

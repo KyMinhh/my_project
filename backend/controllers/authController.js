@@ -8,7 +8,7 @@ const { generateTokenAndSetCookie } = require("../utils/generateTokenAndSetCooki
 // 	sendVerificationEmail,
 // 	 sendWelcomeEmail, // Bỏ qua nếu chưa có trong emailService.js
 // } = require("../mailtrap/emails.js"); // Sửa lại đường dẫn nếu cần
-const { User } = require("../models/User.js"); // Sửa lại User.model.js nếu tên file là vậy
+const { User } = require("../schemas/User.js"); // Sửa lại User.model.js nếu tên file là vậy
 
 exports.signup = async (req, res) => {
 	const { email, password, name } = req.body;

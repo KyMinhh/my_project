@@ -1,9 +1,9 @@
-const Collaboration = require('../models/Collaboration');
-const ShareLink = require('../models/ShareLink');
-const Collaborator = require('../models/Collaborator');
-const Comment = require('../models/Comment');
-const Job = require('../models/Job');
-const { User } = require('../models/User');
+const Collaboration = require('../schemas/Collaboration');
+const ShareLink = require('../schemas/ShareLink');
+const Collaborator = require('../schemas/Collaborator');
+const Comment = require('../schemas/Comment');
+const Job = require('../schemas/Job');
+const { User } = require('../schemas/User');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 

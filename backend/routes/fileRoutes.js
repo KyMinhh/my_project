@@ -2,7 +2,7 @@
 const express = require('express');
 const fileRoutes = express.Router();
 const { verifyToken } = require('../middleware/verifyToken');
-const Job = require('../models/Job');
+const Job = require('../schemas/Job');
 const { translateText } = require('../services/googleCloudService');
 
 const fileController = require('../controllers/fileController');

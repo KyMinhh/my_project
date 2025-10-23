@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/verifyToken');
-const { User } = require('../models/User');
+const { User } = require('../schemas/User');
 const multer = require('multer');
 const path = require('path');
 

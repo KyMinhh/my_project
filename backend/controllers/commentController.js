@@ -1,7 +1,7 @@
-const Comment = require('../models/Comment');
-const Job = require('../models/Job');
-const Collaborator = require('../models/Collaborator');
-const { User } = require('../models/User');
+const Comment = require('../schemas/Comment');
+const Job = require('../schemas/Job');
+const Collaborator = require('../schemas/Collaborator');
+const { User } = require('../schemas/User');
 
 /**
  * Get all comments for a transcript

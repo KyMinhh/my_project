@@ -4,7 +4,7 @@ const { exec } = require("child_process");
 const path = require('path');
 const fs = require('fs').promises;
 const jwt = require('jsonwebtoken');
-const Job = require('../models/Job');
+const Job = require('../schemas/Job');
 const { extractAudio } = require("../utils/ffmpegUtils");
 const { uploadToGCS } = require("../services/googleCloudService");
 // Import processTranscriptionJob và getVideoDuration từ videoController
