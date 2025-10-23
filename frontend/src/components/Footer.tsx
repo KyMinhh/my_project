@@ -1,7 +1,9 @@
 import React from 'react';
 import { Box, Container, Typography, Link } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 const Footer: React.FC = () => {
+  const { t } = useTranslation();
   return (
     <Box
       component="footer"
@@ -17,24 +19,24 @@ const Footer: React.FC = () => {
         <Box display="flex" justifyContent="space-between" flexWrap="wrap" gap={4}>
           <Box>
             <Typography variant="h6" color="text.primary" gutterBottom>
-              Video Transcription
+              {t('Video Transcription')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Chuyển đổi video thành văn bản một cách nhanh chóng và chính xác.
+              {t('Fast and accurate video to text conversion.')}
             </Typography>
           </Box>
           <Box>
             <Typography variant="h6" color="text.primary" gutterBottom>
-              Liên kết
+              {t('Links')}
             </Typography>
             <Link href="/about" color="inherit" display="block">
-              Về chúng tôi
+              {t('About us')}
             </Link>
             <Link href="/contact" color="inherit" display="block">
-              Liên hệ
+              {t('Contact')}
             </Link>
             <Link href="/privacy" color="inherit" display="block">
-              Chính sách bảo mật
+              {t('Privacy Policy')}
             </Link>
           </Box>
         </Box>
@@ -42,7 +44,7 @@ const Footer: React.FC = () => {
           <Typography variant="body2" color="text.secondary" align="center">
             {'© '}
             {new Date().getFullYear()}
-            {' Video Transcription. Tất cả quyền được bảo lưu.'}
+            {' '}{t('Video Transcription')}. {t('All rights reserved.')}
           </Typography>
         </Box>
       </Container>

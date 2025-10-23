@@ -7,7 +7,6 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./db/connectDB");
 const http = require("http");
 const { Server } = require("socket.io");
-const RealTimeCollaboration = require('./services/realTimeCollaboration');
 
 
 const editorRoutes = require('./routes/editorRoutes');
@@ -83,9 +82,6 @@ io.on('connection', (socket) => {
         console.log('👋 User disconnected:', socket.id);
     });
 });
-
-// Initialize real-time collaboration
-const collaboration = new RealTimeCollaboration(io);
 
 // Cleanup stale presence records every 5 minutes
 setInterval(() => {

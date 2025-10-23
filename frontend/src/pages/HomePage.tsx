@@ -14,6 +14,7 @@ import FileUploadZone from '../components/FileUploadZone';
 import JobProgressDialog from '../components/JobProgressDialog';
 import { transcribeVideoFileApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 
 
@@ -49,7 +50,7 @@ const getMediaDuration = (file: File): Promise<number | null> => {
 
 
 const HomePage: React.FC = () => {
-    
+    const { t } = useTranslation();
     const navigate = useNavigate();
     
 
@@ -155,8 +156,8 @@ const HomePage: React.FC = () => {
             <Header language={languageOption} onLanguageChange={handleLanguageOptionChange} />
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', py: { xs: 2, sm: 4 }, px: 2, }}>
                 <Container maxWidth="md" sx={{ textAlign: 'center' }}>
-                    <Typography variant="h2" component="h1" gutterBottom sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '2.5rem', sm: '3.75rem' } }}> Transcribe Video to Text</Typography>
-                    <Typography variant="h6" sx={{ color: '#a9b1c7', mb: 4, fontSize: { xs: '1rem', sm: '1.25rem' } }}> App-powered transcription... </Typography>
+                    <Typography variant="h2" component="h1" gutterBottom sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '2.5rem', sm: '3.75rem' } }}> {t('Transcribe Video to Text')}</Typography>
+                    <Typography variant="h6" sx={{ color: '#a9b1c7', mb: 4, fontSize: { xs: '1rem', sm: '1.25rem' } }}> {t('App-powered transcription')} </Typography>
 
                     <FileUploadZone
                         onDrop={handleDrop} selectedFile={file} isLoading={isLoading} isLoadingDuration={isCalculatingDuration}
@@ -170,20 +171,20 @@ const HomePage: React.FC = () => {
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" sx={{ mb: 3 }}>
                         <Paper onClick={handleYoutubeNavigate} elevation={3} sx={{ p: 0, flexGrow: 1, bgcolor: '#2a2f4a', display: 'flex', alignItems: 'center', cursor: 'pointer', overflow: 'hidden', borderRadius: 2, transition: 'transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out', '&:hover': { bgcolor: '#3a3f5a', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' } }} >
                             <Box sx={{ bgcolor: '#1a1f2e', p: 2 }}><YouTubeIcon sx={{ color: 'red', fontSize: { xs: 24, sm: 30 } }} /></Box>
-                            <Typography variant="body1" sx={{ color: 'white', flexGrow: 1, textAlign: 'center', p: 2, fontWeight: 500 }}> Transcribe Youtube Video </Typography>
+                            <Typography variant="body1" sx={{ color: 'white', flexGrow: 1, textAlign: 'center', p: 2, fontWeight: 500 }}> {t('Transcribe Youtube Video')} </Typography>
                         </Paper>
                         <Paper onClick={handleTikTokNavigate} elevation={3} sx={{ p: 0, flexGrow: 1, bgcolor: '#2a2f4a', display: 'flex', alignItems: 'center', cursor: 'pointer', overflow: 'hidden', borderRadius: 2, transition: 'transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out', '&:hover': { bgcolor: '#3a3f5a', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' } }} >
                             <Box sx={{ bgcolor: '#1a1f2e', p: 2 }}><MusicVideoIcon sx={{ color: 'white', fontSize: { xs: 24, sm: 30 } }} /></Box>
-                            <Typography variant="body1" sx={{ color: 'white', flexGrow: 1, textAlign: 'center', p: 2, fontWeight: 500 }}> Transcribe TikTok Video </Typography>
+                            <Typography variant="body1" sx={{ color: 'white', flexGrow: 1, textAlign: 'center', p: 2, fontWeight: 500 }}> {t('Transcribe TikTok Video')} </Typography>
                         </Paper>
                     </Stack>
 
                     {}
                     <Box sx={{ mt: 4, mb: 4 }}>
                         <Stack direction="row" spacing={{ xs: 1, sm: 2 }} justifyContent="center" alignItems="center" flexWrap="wrap" sx={{ color: '#a9b1c7' }}>
-                            <Typography variant="body2" sx={{ mr: 1, mb: { xs: 1, sm: 0 } }}>Example:</Typography>
-                            <Chip label="Hello Song for Children..." variant="outlined" onClick={() => handleExampleClick()} />
-                            <Chip label="Toi di hoc..." variant="outlined" onClick={() => handleExampleClick1()} />
+                            <Typography variant="body2" sx={{ mr: 1, mb: { xs: 1, sm: 0 } }}>{t('Example:')}</Typography>
+                            <Chip label={t('Hello Song for Children...')} variant="outlined" onClick={() => handleExampleClick()} />
+                            <Chip label={t('Toi di hoc...')} variant="outlined" onClick={() => handleExampleClick1()} />
                         </Stack>
                     </Box>
 
