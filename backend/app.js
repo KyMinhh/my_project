@@ -105,9 +105,5 @@ setInterval(() => {
     collaboration.cleanupStalePresence();
 }, 5 * 60 * 1000);
 
-server.listen(5001, () => {
-    console.log('Serving static files for /uploads from:', path.join(__dirname, 'uploads'));
-    connectDB();
-    console.log("✅ Database connected successfully.");
-    console.log("Server is running on http://127.0.0.1:5001");
-});
+// Export app, server, and io for use in bin/www
+module.exports = { app, server, io };
