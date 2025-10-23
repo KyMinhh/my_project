@@ -1,23 +1,237 @@
 const express = require("express");
-const {
-	login,
-	logout,
-	signup,
-	verifyEmail,
-	forgotPassword,
-	resetPassword,
-	checkAuth,
-} = require("../controllers/authController.js"); // Sử dụng require
-const { verifyToken } = require("../middleware/verifyToken.js"); // Sử dụng require
+const bcryptjs = require("bcryptjs");
+const crypto = require("crypto");
+const { generateTokenAndSetCookie } = require("../utils/generateTokenAndSetCookie.js");
+const { User } = require("../schemas/User.js");
+const { verifyToken } = require("../middleware/verifyToken.js");
+
 
 const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/login", login);
-router.post("/logout", verifyToken, logout); // Thêm verifyToken cho logout nếu cần xác định user
-router.post("/verify-email", verifyEmail);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
-router.get("/check-auth", verifyToken, checkAuth); // verifyToken sẽ chạy trước checkAuth
+// Signup
+router.post("/signup", async (req, res) => {
+	const { email, password, name } = req.body;
 
-module.exports = router; // Sử dụng module.exports
+	try {
+		if (!email || !password || !name) {
+			throw new Error("All fields (name, email, password) are required");
+		}
+
+		const userAlreadyExists = await User.findOne({ email });
+
+		if (userAlreadyExists) {
+			return res.status(400).json({ success: false, message: "User already exists" });
+		}
+
+		const hashedPassword = await bcryptjs.hash(password, 10);
+		const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+
+		const user = new User({
+			email,
+			password: hashedPassword,
+			name,
+			verificationToken,
+			verificationTokenExpiresAt: Date.now() + 15 * 60 * 1000,
+			isVerified: true,
+		});
+
+		await user.save();
+
+		generateTokenAndSetCookie(res, user._id);
+
+		res.status(201).json({
+			success: true,
+			message: "User created successfully. Please check your email to verify your account.",
+			user: {
+				_id: user._id,
+				email: user.email,
+				name: user.name,
+				isVerified: user.isVerified,
+			}
+		});
+	} catch (error) {
+		console.error("Error in signup: ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
+});
+
+// Verify email
+router.post("/verify-email", async (req, res) => {
+	const { code } = req.body;
+	try {
+		if (!code) {
+			return res.status(400).json({ success: false, message: "Verification code is required." });
+		}
+
+		const user = await User.findOne({
+			verificationToken: code,
+			verificationTokenExpiresAt: { $gt: Date.now() },
+		});
+
+		if (!user) {
+			return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
+		}
+
+		user.isVerified = true;
+		user.verificationToken = undefined;
+		user.verificationTokenExpiresAt = undefined;
+		await user.save();
+
+		generateTokenAndSetCookie(res, user._id);
+
+		res.status(200).json({
+			success: true,
+			message: "Email verified successfully. You are now logged in.",
+			user: {
+				_id: user._id,
+				email: user.email,
+				name: user.name,
+				isVerified: user.isVerified,
+				lastLogin: user.lastLogin,
+			},
+		});
+	} catch (error) {
+		console.error("Error in verifyEmail: ", error);
+		res.status(500).json({ success: false, message: "Server error during email verification." });
+	}
+});
+
+// Login
+router.post("/login", async (req, res) => {
+	const { email, password } = req.body;
+	try {
+		const user = await User.findOne({ email });
+		if (!user) {
+			return res.status(400).json({ success: false, message: "Invalid credentials" });
+		}
+
+		const isPasswordValid = await bcryptjs.compare(password, user.password);
+		if (!isPasswordValid) {
+			return res.status(400).json({ success: false, message: "Invalid credentials" });
+		}
+
+		const token = generateTokenAndSetCookie(res, user._id);
+
+		user.lastLogin = new Date();
+		await user.save();
+
+		res.status(200).json({
+			success: true,
+			message: "Logged in successfully",
+			token,
+			user: {
+				_id: user._id,
+				email: user.email,
+				name: user.name,
+				isVerified: user.isVerified,
+				lastLogin: user.lastLogin,
+			}
+		});
+	} catch (error) {
+		console.log("Error in login: ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
+});
+
+// Logout
+router.post("/logout", verifyToken, async (req, res) => {
+	try {
+		res.clearCookie("token", {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict",
+		});
+		res.status(200).json({ success: true, message: "Logged out successfully" });
+	} catch (error) {
+		console.error("Error in logout: ", error);
+		res.status(500).json({ success: false, message: "Server error during logout." });
+	}
+});
+
+// Forgot password
+router.post("/forgot-password", async (req, res) => {
+	const { email } = req.body;
+	try {
+		if (!email) {
+			return res.status(400).json({ success: false, message: "Email is required." });
+		}
+		const user = await User.findOne({ email });
+
+		if (!user) {
+			return res.status(200).json({ success: true, message: "If an account with that email exists, a password reset link has been sent." });
+		}
+
+		const resetToken = crypto.randomBytes(32).toString("hex");
+		const resetTokenHashed = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+		user.resetPasswordToken = resetTokenHashed;
+		user.resetPasswordExpiresAt = Date.now() + 10 * 60 * 1000;
+
+		await user.save();
+
+		const resetURL = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+
+		res.status(200).json({ success: true, message: "If an account with that email exists, a password reset link has been sent." });
+	} catch (error) {
+		console.error("Error in forgotPassword: ", error);
+		res.status(500).json({ success: false, message: "Server error during password reset request." });
+	}
+});
+
+// Reset password
+router.post("/reset-password/:token", async (req, res) => {
+	try {
+		const { token } = req.params;
+		const { password } = req.body;
+
+		if (!password || password.length < 6) {
+			return res.status(400).json({ success: false, message: "Password must be at least 6 characters long." });
+		}
+
+		const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+		const user = await User.findOne({
+			resetPasswordToken: hashedToken,
+			resetPasswordExpiresAt: { $gt: Date.now() },
+		});
+
+		if (!user) {
+			return res.status(400).json({ success: false, message: "Invalid or expired reset token. Please try again." });
+		}
+
+		const hashedPassword = await bcryptjs.hash(password, 10);
+
+		user.password = hashedPassword;
+		user.resetPasswordToken = undefined;
+		user.resetPasswordExpiresAt = undefined;
+		user.isVerified = true;
+		await user.save();
+
+		res.status(200).json({ success: true, message: "Password reset successful. Please log in with your new password." });
+	} catch (error) {
+		console.error("Error in resetPassword: ", error);
+		res.status(500).json({ success: false, message: "Server error during password reset." });
+	}
+});
+
+// Check auth
+router.get("/check-auth", verifyToken, async (req, res) => {
+	try {
+		const user = await User.findById(req.userId).select("-password -verificationToken -verificationTokenExpiresAt -resetPasswordToken -resetPasswordExpiresAt");
+		if (!user) {
+			res.clearCookie("token");
+			return res.status(401).json({ success: false, message: "User not found, session terminated." });
+		}
+
+		if (!user.isVerified) {
+			return res.status(401).json({ success: false, message: "User not verified.", needsVerification: true });
+		}
+
+		res.status(200).json({ success: true, user });
+	} catch (error) {
+		console.error("Error in checkAuth: ", error);
+		res.status(500).json({ success: false, message: "Server error during authentication check." });
+	}
+});
+
+module.exports = router;

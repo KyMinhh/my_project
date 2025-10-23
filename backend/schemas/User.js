@@ -96,9 +96,8 @@ const userSchema = new mongoose.Schema(
 		verificationToken: String,
 		verificationTokenExpiresAt: Date,
 	},
-	{ timestamps: true } // Tự động thêm createdAt và updatedAt
+	{ timestamps: true } 
 );
 
-// module.exports = mongoose.model("User", userSchema); // Nếu tên file là User.model.js
 const User = mongoose.model("User", userSchema);
-module.exports = { User }; // Hoặc export như này để khi require có thể const { User } = ...
+module.exports = { User }; 

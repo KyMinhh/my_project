@@ -11,6 +11,7 @@ import MusicVideoIcon from '@mui/icons-material/MusicVideo';
 import Header from '../components/Header';
 import Footer from '../components/Footer'; 
 import FileUploadZone from '../components/FileUploadZone';
+import JobProgressDialog from '../components/JobProgressDialog';
 import { transcribeVideoFileApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -63,6 +64,8 @@ const HomePage: React.FC = () => {
     const [includeConvertOptions, setIncludeConvertOptions] = useState<boolean>(false);
     const [recognizeSpeakersOption, setRecognizeSpeakersOption] = useState<string>('auto');
     const [languageOption, setLanguageOption] = useState<string>('auto');
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+    const [showProgressDialog, setShowProgressDialog] = useState<boolean>(false);
 
 
     
@@ -108,34 +111,22 @@ const HomePage: React.FC = () => {
         
 
         try {
-            
-            
             const response = await transcribeVideoFileApi(formData);
+            console.log("API call successful, backend response:", response);
 
-            
-            
-            
-
-            
-            
-            
-            
-            
-            console.log("API call successful (response.ok was true), backend response:", response);
-
-            
-            if (response && response.success) { 
-                console.log("Request accepted by backend, navigating...");
-                navigate('/files');
-            } else {
+            if (response && response.success && response.jobId) { 
+                console.log("✅ Job created:", response.jobId);
                 
+                // Show progress dialog with real-time updates
+                setCurrentJobId(response.jobId);
+                setShowProgressDialog(true);
+                setIsLoading(false);
+            } else {
                 setError(response?.message || 'Backend indicated an issue.');
                 setIsLoading(false);
             }
-            
 
         } catch (err: any) {
-            
             console.error("Error calling API or processing response:", err);
             setError(err.message || 'An error occurred.');
             setIsLoading(false);
@@ -202,7 +193,24 @@ const HomePage: React.FC = () => {
 
                 </Container>
             </Box>
-            <Footer /> 
+            <Footer />
+            
+            {/* Real-time progress dialog */}
+            <JobProgressDialog
+                open={showProgressDialog}
+                jobId={currentJobId}
+                onClose={() => {
+                    setShowProgressDialog(false);
+                    setCurrentJobId(null);
+                }}
+                onComplete={(data) => {
+                    console.log('✅ Transcription completed:', data);
+                    // Auto navigate to files page after 2 seconds
+                    setTimeout(() => {
+                        navigate('/files');
+                    }, 2000);
+                }}
+            />
         </>
     );
 };
