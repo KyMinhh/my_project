@@ -6,7 +6,6 @@ const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const { verifyToken } = require('../middleware/verifyToken');
 const Job = require('../schemas/Job');
 const { extractAudio } = require('../utils/ffmpegUtils');
 const { uploadToGCS, transcribeAudioFromGCS, translateText } = require('../services/googleCloudService');
@@ -63,98 +62,139 @@ function execPromise(command) {
     });
 }
 
-// Helper: Process transcription job
+// Helper: Process transcription job (OPTIMIZED)
 async function processTranscriptionJob(ioInstance, jobId, videoPath, audioPath, gcsAudioUri, speechConfig, targetLang = null) {
-    emitJobStatusUpdate(ioInstance, jobId, 'processing', 'Transcription process initiated.');
+    const startTime = Date.now();
+    console.log(`[Job ${jobId}] 🚀 Starting transcription process...`);
+    
+    // Update status to processing immediately
+    await Job.findByIdAndUpdate(jobId, { status: 'processing' });
+    emitJobStatusUpdate(ioInstance, jobId, 'processing', 'Transcription in progress...');
+    
     const outputsDir = path.join(__dirname, '..', 'outputs');
     const transcriptRawJsonFilePath = path.join(outputsDir, `transcript_raw_${jobId}.json`);
 
     try {
+        // Step 1: Transcription
+        console.log(`[Job ${jobId}] 📝 Calling Google Speech API...`);
         const recognitionResult = await transcribeAudioFromGCS(gcsAudioUri, speechConfig);
         const { transcription, segments, rawResponse, detectedSpeakerCount, error: recognitionError } = recognitionResult;
 
         if (recognitionError) {
             await Job.findByIdAndUpdate(jobId, { status: 'failed', errorMessage: recognitionError, segments: [] });
             emitJobStatusUpdate(ioInstance, jobId, 'failed', recognitionError);
+            console.error(`[Job ${jobId}] ❌ Transcription failed: ${recognitionError}`);
             return;
         }
 
-        let finalStatus = 'success';
-        let successMessage = 'Transcription successful.';
+        console.log(`[Job ${jobId}] ✅ Transcription completed in ${((Date.now() - startTime) / 1000).toFixed(2)}s`);
         
+        // Step 2: Update DB with transcription results IMMEDIATELY
         let updateData = {
-            status: finalStatus,
+            status: 'success',
             transcriptionResult: transcription,
-            segments: segments || []
+            segments: segments || [],
+            completedAt: new Date()
         };
 
         if (speechConfig.diarizationConfig?.enableSpeakerDiarization && detectedSpeakerCount !== undefined) {
             updateData.detectedSpeakerCount = detectedSpeakerCount;
         }
 
+        // Update DB first before translation (so user sees results faster)
+        await Job.findByIdAndUpdate(jobId, updateData);
+        
+        let finalMessage = 'Transcription successful.';
+        
+        // Emit success status immediately after transcription
+        emitJobStatusUpdate(ioInstance, jobId, 'success', finalMessage, { 
+            transcription, 
+            segments: segments || [], 
+            detectedSpeakerCount,
+            processingTime: ((Date.now() - startTime) / 1000).toFixed(2)
+        });
+
+        // Step 3: Translation (if needed) - runs AFTER main result is saved
         if (targetLang && segments && segments.length > 0) {
-            console.log(`🌐 Starting translation to ${targetLang} for job ${jobId}...`);
-            emitJobStatusUpdate(ioInstance, jobId, 'processing', `Translating to ${targetLang}...`);
+            console.log(`[Job ${jobId}] 🌐 Starting translation to ${targetLang}...`);
+            emitJobStatusUpdate(ioInstance, jobId, 'translating', `Translating to ${targetLang}...`);
             
             try {
-                const translatedSegments = await Promise.all(
-                    segments.map(async (segment) => ({
-                        ...segment,
-                        translatedText: await translateText(segment.text, targetLang)
-                    }))
-                );
+                // Batch translation for better performance
+                const BATCH_SIZE = 10;
+                const translatedSegments = [];
                 
-                updateData.translatedTranscript = translatedSegments;
-                updateData.targetLang = targetLang;
-                successMessage = `Transcription and translation to ${targetLang} successful.`;
-                console.log(`✔️ Translation completed for job ${jobId}`);
+                for (let i = 0; i < segments.length; i += BATCH_SIZE) {
+                    const batch = segments.slice(i, i + BATCH_SIZE);
+                    const translatedBatch = await Promise.all(
+                        batch.map(async (segment) => ({
+                            ...segment,
+                            translatedText: await translateText(segment.text, targetLang)
+                        }))
+                    );
+                    translatedSegments.push(...translatedBatch);
+                    
+                    // Update progress
+                    const progress = Math.min(100, Math.round(((i + BATCH_SIZE) / segments.length) * 100));
+                    emitJobStatusUpdate(ioInstance, jobId, 'translating', `Translation progress: ${progress}%`);
+                }
+                
+                await Job.findByIdAndUpdate(jobId, {
+                    translatedTranscript: translatedSegments,
+                    targetLang: targetLang
+                });
+                
+                finalMessage = `Transcription and translation to ${targetLang} successful.`;
+                emitJobStatusUpdate(ioInstance, jobId, 'translation_complete', finalMessage, {
+                    translatedTranscript: translatedSegments
+                });
+                console.log(`[Job ${jobId}] ✅ Translation completed`);
             } catch (translationError) {
-                console.error(`❌ Translation failed for job ${jobId}:`, translationError.message);
-                successMessage = 'Transcription successful, but translation failed.';
-                updateData.errorMessage = `Translation error: ${translationError.message}`;
+                console.error(`[Job ${jobId}] ❌ Translation failed:`, translationError.message);
+                await Job.findByIdAndUpdate(jobId, { 
+                    errorMessage: `Translation error: ${translationError.message}` 
+                });
+                emitJobStatusUpdate(ioInstance, jobId, 'translation_failed', 'Translation failed, but transcription is available.');
             }
         }
 
-        if (!segments || segments.length === 0) {
-            if (transcription && transcription.length > 0) {
-                successMessage = 'Transcription text available, but no detailed segments.';
-            } else {
-                successMessage = 'Transcription resulted in no text or segments.';
-            }
-        }
-        
-        await Job.findByIdAndUpdate(jobId, updateData);
-        emitJobStatusUpdate(ioInstance, jobId, finalStatus, successMessage, { transcription, segments: segments || [], detectedSpeakerCount });
-
+        // Step 4: Save raw response (non-blocking, low priority)
         if (rawResponse) {
-            try {
-                await fs.mkdir(outputsDir, { recursive: true });
-                await fs.writeFile(transcriptRawJsonFilePath, JSON.stringify(rawResponse, null, 2), 'utf8');
-            } catch (fileError) {
-                console.error(`[Job ${jobId}] Error writing raw transcription data:`, fileError);
-            }
+            fs.mkdir(outputsDir, { recursive: true })
+                .then(() => fs.writeFile(transcriptRawJsonFilePath, JSON.stringify(rawResponse, null, 2), 'utf8'))
+                .catch(fileError => console.error(`[Job ${jobId}] Error writing raw data:`, fileError));
         }
+
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`[Job ${jobId}] 🎉 Total processing time: ${totalTime}s`);
+        
     } catch (processingError) {
         const errorMessage = processingError.message || 'Transcription processing failed';
+        console.error(`[Job ${jobId}] ❌ Fatal error:`, errorMessage);
         try {
-            await Job.findByIdAndUpdate(jobId, { status: 'failed', errorMessage: errorMessage, segments: [] });
+            await Job.findByIdAndUpdate(jobId, { 
+                status: 'failed', 
+                errorMessage: errorMessage, 
+                segments: [],
+                failedAt: new Date()
+            });
             emitJobStatusUpdate(ioInstance, jobId, 'failed', errorMessage);
         } catch (dbError) {
             console.error(`[Job ${jobId}] Failed to update DB to failed status:`, dbError);
         }
     } finally {
-        try {
-            if (audioPath && await fs.access(audioPath).then(() => true).catch(() => false)) {
-                await fs.unlink(audioPath);
-            }
-        } catch (cleanupErr) {
-            console.warn(`[Job ${jobId}] Could not delete temporary audio file:`, cleanupErr.message);
+        // Cleanup audio file asynchronously (non-blocking)
+        if (audioPath) {
+            fs.access(audioPath)
+                .then(() => fs.unlink(audioPath))
+                .then(() => console.log(`[Job ${jobId}] 🗑️ Cleaned up audio file`))
+                .catch(() => {}); // Ignore cleanup errors
         }
     }
 }
 
 // POST /api/transcribe - Upload and transcribe video
-router.post('/transcribe', upload.single('video'), verifyToken, async (req, res) => {
+router.post('/transcribe', upload.single('video'), async (req, res) => {
     let videoPath = '', audioPath = '', gcsAudioUri = '', newJob = null;
     const io = req.app.get('socketio');
 
@@ -181,11 +221,23 @@ router.post('/transcribe', upload.single('video'), verifyToken, async (req, res)
         audioPath = path.join(uploadDir, audioFileName);
 
         await fs.rename(file.path, videoPath);
-        emitJobStatusUpdate(io, `temp-${uniqueSuffix}`, 'processing', `Video uploaded: ${originalName}. Processing...`);
+        emitJobStatusUpdate(io, `temp-${uniqueSuffix}`, 'uploading', `Video uploaded: ${originalName}. Starting processing...`);
         
-        const durationInSeconds = await getVideoDuration(videoPath);
-        await extractAudio(videoPath, audioPath);
+        // ✅ OPTIMIZATION: Run duration check and audio extraction in parallel
+        console.log(`[Upload] 🚀 Starting parallel processing...`);
+        const [durationInSeconds] = await Promise.all([
+            getVideoDuration(videoPath),
+            extractAudio(videoPath, audioPath, (percent) => {
+                // Emit audio extraction progress
+                emitJobStatusUpdate(io, `temp-${uniqueSuffix}`, 'extracting', `Extracting audio: ${percent}%`, { progress: percent });
+            })
+        ]);
+        
+        console.log(`[Upload] ✅ Parallel extraction completed`);
+        emitJobStatusUpdate(io, `temp-${uniqueSuffix}`, 'uploading_cloud', `Uploading to cloud storage...`);
+        
         gcsAudioUri = await uploadToGCS(audioPath, audioFileName);
+        emitJobStatusUpdate(io, `temp-${uniqueSuffix}`, 'creating_job', `Cloud upload complete. Creating job...`);
 
         newJob = new Job({
             userId: getUserIdFromRequest(req),
@@ -259,7 +311,7 @@ router.post('/transcribe', upload.single('video'), verifyToken, async (req, res)
 });
 
 // POST /api/transcribe-from-youtube - Transcribe from YouTube URL
-router.post('/transcribe-from-youtube', verifyToken, async (req, res) => {
+router.post('/transcribe-from-youtube', async (req, res) => {
     let videoPath = '', audioPath = '', gcsAudioUri = '', newJob = null;
     const io = req.app.get('socketio');
 
@@ -293,11 +345,22 @@ router.post('/transcribe-from-youtube', verifyToken, async (req, res) => {
         audioPath = path.join(uploadDir, audioFileName);
 
         await fs.mkdir(uploadDir, { recursive: true });
+        
+        emitJobStatusUpdate(io, `temp-yt-${uniqueSuffix}`, 'downloading', `Downloading YouTube video...`);
         await execPromise(`yt-dlp --no-playlist --no-abort-on-error --output "${videoPath}" --recode-video mp4 "${youtubeUrl}"`);
         
         await fs.access(videoPath);
-        const durationInSeconds = await getVideoDuration(videoPath);
-        await extractAudio(videoPath, audioPath);
+        emitJobStatusUpdate(io, `temp-yt-${uniqueSuffix}`, 'extracting', `Video downloaded. Extracting audio...`);
+        
+        // ✅ Parallel processing
+        const [durationInSeconds] = await Promise.all([
+            getVideoDuration(videoPath),
+            extractAudio(videoPath, audioPath, (percent) => {
+                emitJobStatusUpdate(io, `temp-yt-${uniqueSuffix}`, 'extracting', `Extracting audio: ${percent}%`, { progress: percent });
+            })
+        ]);
+        
+        emitJobStatusUpdate(io, `temp-yt-${uniqueSuffix}`, 'uploading_cloud', `Uploading to cloud...`);
         gcsAudioUri = await uploadToGCS(audioPath, audioFileName);
 
         newJob = new Job({
@@ -371,7 +434,7 @@ router.post('/transcribe-from-youtube', verifyToken, async (req, res) => {
 });
 
 // POST /api/transcribe-from-tiktok - Transcribe from TikTok URL
-router.post('/transcribe-from-tiktok', verifyToken, async (req, res) => {
+router.post('/transcribe-from-tiktok', async (req, res) => {
     let videoPath = '', audioPath = '', gcsAudioUri = '', newJob = null;
     const io = req.app.get('socketio');
 
@@ -392,11 +455,22 @@ router.post('/transcribe-from-tiktok', verifyToken, async (req, res) => {
         audioPath = path.join(uploadDir, audioFileName);
 
         await fs.mkdir(uploadDir, { recursive: true });
+        
+        emitJobStatusUpdate(io, `temp-tiktok-${uniqueSuffix}`, 'downloading', `Downloading TikTok video...`);
         await execPromise(`yt-dlp --no-playlist --no-abort-on-error --output "${videoPath}" "${cleanTiktokUrl}"`);
         
         await fs.access(videoPath);
-        const durationInSeconds = await getVideoDuration(videoPath);
-        await extractAudio(videoPath, audioPath);
+        emitJobStatusUpdate(io, `temp-tiktok-${uniqueSuffix}`, 'extracting', `Video downloaded. Extracting audio...`);
+        
+        // ✅ Parallel processing
+        const [durationInSeconds] = await Promise.all([
+            getVideoDuration(videoPath),
+            extractAudio(videoPath, audioPath, (percent) => {
+                emitJobStatusUpdate(io, `temp-tiktok-${uniqueSuffix}`, 'extracting', `Extracting audio: ${percent}%`, { progress: percent });
+            })
+        ]);
+        
+        emitJobStatusUpdate(io, `temp-tiktok-${uniqueSuffix}`, 'uploading_cloud', `Uploading to cloud...`);
         gcsAudioUri = await uploadToGCS(audioPath, audioFileName);
 
         newJob = new Job({

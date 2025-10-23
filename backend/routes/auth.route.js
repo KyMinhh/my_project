@@ -5,6 +5,7 @@ const { generateTokenAndSetCookie } = require("../utils/generateTokenAndSetCooki
 const { User } = require("../schemas/User.js");
 const { verifyToken } = require("../middleware/verifyToken.js");
 
+
 const router = express.Router();
 
 // Signup

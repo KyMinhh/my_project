@@ -10,7 +10,7 @@ import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import TranslateIcon from '@mui/icons-material/Translate';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-
+import JobProgressDialog from '../components/JobProgressDialog';
 import { transcribeYoutubeUrlApi } from '../services/fileApi';
 import { TranscribeInitiateResponse } from '../types/fileTypes';
 
@@ -23,7 +23,8 @@ const YoutubePage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+    const [showProgressDialog, setShowProgressDialog] = useState<boolean>(false);
 
     const [recognizeSpeakersOption, setRecognizeSpeakersOption] = useState<string>(location.state?.recognizeSpeakersOption || 'auto');
     const [languageOption, setLanguageOption] = useState<string>(location.state?.languageOption || 'auto');
@@ -65,15 +66,14 @@ const YoutubePage: React.FC = () => {
             });
 
             if (response.success && response.jobId) {
-
-                setSuccessMessage(response.message || 'YouTube transcription request sent successfully! Processing has started.');
+                console.log('✅ YouTube job created:', response.jobId);
+                
+                // Show progress dialog with real-time updates
+                setCurrentJobId(response.jobId);
+                setShowProgressDialog(true);
                 setYoutubeUrl('');
-
-                setTimeout(() => {
-                    navigate('/files');
-                }, 2000);
+                setIsLoading(false);
             } else {
-
                 setError(response.message || 'Failed to initiate YouTube transcription.');
             }
         } catch (err: any) {
@@ -156,6 +156,22 @@ const YoutubePage: React.FC = () => {
                     </Paper>
                 </Container>
             </Box>
+            
+            {/* Real-time progress dialog */}
+            <JobProgressDialog
+                open={showProgressDialog}
+                jobId={currentJobId}
+                onClose={() => {
+                    setShowProgressDialog(false);
+                    setCurrentJobId(null);
+                }}
+                onComplete={(data) => {
+                    console.log('✅ YouTube transcription completed:', data);
+                    setTimeout(() => {
+                        navigate('/files');
+                    }, 2000);
+                }}
+            />
         </>
     );
 };

@@ -9,7 +9,7 @@ import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import TranslateIcon from '@mui/icons-material/Translate';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-
+import JobProgressDialog from '../components/JobProgressDialog';
 import { transcribeTiktokUrlApi } from '../services/fileApi';
 import { TranscribeInitiateResponse } from '../types/fileTypes';
 
@@ -22,7 +22,8 @@ const TikTokPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
+    const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+    const [showProgressDialog, setShowProgressDialog] = useState<boolean>(false);
 
     const [recognizeSpeakersOption, setRecognizeSpeakersOption] = useState<string>(location.state?.recognizeSpeakersOption || 'auto');
     const [languageOption, setLanguageOption] = useState<string>(location.state?.languageOption || 'auto');
@@ -52,15 +53,14 @@ const TikTokPage: React.FC = () => {
             });
 
             if (response.success && response.jobId) {
-
-                setSuccessMessage(response.message || 'TikTok transcription request sent! Processing started.');
+                console.log('✅ TikTok job created:', response.jobId);
+                
+                // Show progress dialog with real-time updates
+                setCurrentJobId(response.jobId);
+                setShowProgressDialog(true);
                 setTiktokUrl('');
-
-                setTimeout(() => {
-                    navigate('/files');
-                }, 2000);
+                setIsLoading(false);
             } else {
-
                 setError(response.message || 'Failed to initiate TikTok transcription.');
             }
         } catch (err: any) {
@@ -136,13 +136,24 @@ const TikTokPage: React.FC = () => {
                     </Paper>
                 </Container>
             </Box>
+            
+            {/* Real-time progress dialog */}
+            <JobProgressDialog
+                open={showProgressDialog}
+                jobId={currentJobId}
+                onClose={() => {
+                    setShowProgressDialog(false);
+                    setCurrentJobId(null);
+                }}
+                onComplete={(data) => {
+                    console.log('✅ TikTok transcription completed:', data);
+                    setTimeout(() => {
+                        navigate('/files');
+                    }, 2000);
+                }}
+            />
         </>
     );
 };
-
-
-
-
-
 
 export default TikTokPage;
