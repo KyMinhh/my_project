@@ -10,18 +10,13 @@ const { Server } = require("socket.io");
 const RealTimeCollaboration = require('./services/realTimeCollaboration');
 
 
-const videoController = require("./controllers/videoController");
-const youtubeController = require("./controllers/youtubeController");
-const tiktokController = require("./controllers/tiktokController");
-
-
 const editorRoutes = require('./routes/editorRoutes');
 const fileRoutes = require('./routes/fileRoutes');
-const authRoutes = require('./routes/auth.route'); // Đảm bảo bạn đã import authRoutes từ routes/auth.route.js
+const authRoutes = require('./routes/auth.route');
 const profileRoutes = require('./routes/profileRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-const collaborationRoutes = require('./routes/collaborationRoutes');
 const subtitleRoutes = require('./routes/subtitleRoutes');
+const transcriptionRoutes = require('./routes/transcriptionRoutes');
 const { verifyToken } = require('./middleware/verifyToken');
 
 const app = express();
@@ -50,7 +45,6 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.set('socketio', io);
-const upload = multer({ dest: "uploads/" });
 
 app.use(express.json());
 app.use(cookieParser());
@@ -59,15 +53,12 @@ app.use("/outputs", express.static(path.join(__dirname, "outputs")));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
-app.post("/api/transcribe", upload.single("video"), videoController.transcribeVideo);
-app.post("/api/transcribe-from-youtube", youtubeController.transcribeFromYoutube);
-app.post("/api/transcribe-from-tiktok", tiktokController.transcribeFromTiktok);
+app.use('/api', transcriptionRoutes);
 app.use('/api/editor', editorRoutes);
 app.use('/api', fileRoutes);
 app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use('/api', dashboardRoutes);
-app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/subtitles', subtitleRoutes);
 
 

@@ -2,11 +2,7 @@ const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
 
-/**
- * Executes a command and returns a promise
- * @param {string} command - Command to execute
- * @returns {Promise<string>} - Promise that resolves with stdout
- */
+
 function execPromise(command) {
     return new Promise((resolve, reject) => {
         exec(command, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
@@ -21,12 +17,6 @@ function execPromise(command) {
     });
 }
 
-/**
- * Downloads a YouTube video using yt-dlp
- * @param {string} youtubeUrl - YouTube video URL
- * @param {string} outputPath - Path where the video should be saved
- * @returns {Promise<string>} - Promise that resolves with the downloaded file path
- */
 exports.downloadYouTubeVideo = async (youtubeUrl, outputPath) => {
     try {
         console.log(`🎬 Starting YouTube video download: ${youtubeUrl}`);
@@ -55,11 +45,7 @@ exports.downloadYouTubeVideo = async (youtubeUrl, outputPath) => {
     }
 };
 
-/**
- * Extracts video ID from YouTube URL
- * @param {string} youtubeUrl - YouTube video URL
- * @returns {string} - Video ID or generated fallback
- */
+
 exports.extractVideoId = (youtubeUrl) => {
     try {
         // Try parsing as URL first
@@ -83,11 +69,7 @@ exports.extractVideoId = (youtubeUrl) => {
     return `yt-${Date.now()}`;
 };
 
-/**
- * Validates if a URL is a valid YouTube URL
- * @param {string} url - URL to validate
- * @returns {boolean} - True if valid YouTube URL
- */
+
 exports.isValidYouTubeUrl = (url) => {
     if (!url || typeof url !== 'string') return false;
     
@@ -102,11 +84,6 @@ exports.isValidYouTubeUrl = (url) => {
     return youtubePatterns.some(pattern => pattern.test(url));
 };
 
-/**
- * Gets video metadata using yt-dlp
- * @param {string} youtubeUrl - YouTube video URL
- * @returns {Promise<Object>} - Video metadata
- */
 exports.getVideoMetadata = async (youtubeUrl) => {
     try {
         const command = `yt-dlp --dump-json --no-playlist "${youtubeUrl}"`;
@@ -130,12 +107,7 @@ exports.getVideoMetadata = async (youtubeUrl) => {
     }
 };
 
-/**
- * Downloads audio only from YouTube video
- * @param {string} youtubeUrl - YouTube video URL
- * @param {string} outputPath - Path where the audio should be saved
- * @returns {Promise<string>} - Promise that resolves with the downloaded audio file path
- */
+
 exports.downloadYouTubeAudio = async (youtubeUrl, outputPath) => {
     try {
         console.log(`🎵 Starting YouTube audio download: ${youtubeUrl}`);
@@ -164,10 +136,7 @@ exports.downloadYouTubeAudio = async (youtubeUrl, outputPath) => {
     }
 };
 
-/**
- * Checks if yt-dlp is available in the system
- * @returns {Promise<boolean>} - True if yt-dlp is available
- */
+
 exports.checkYtDlpAvailability = async () => {
     try {
         await execPromise('yt-dlp --version');
@@ -178,11 +147,6 @@ exports.checkYtDlpAvailability = async () => {
     }
 };
 
-/**
- * Gets available formats for a YouTube video
- * @param {string} youtubeUrl - YouTube video URL
- * @returns {Promise<Array>} - Available formats
- */
 exports.getAvailableFormats = async (youtubeUrl) => {
     try {
         const command = `yt-dlp --list-formats --dump-json "${youtubeUrl}"`;

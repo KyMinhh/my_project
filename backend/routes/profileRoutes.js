@@ -168,7 +168,7 @@ router.delete('/avatar', verifyToken, async (req, res) => {
 });
 
 // Search users
-router.get('/search/:query', async (req, res) => {
+router.get('/search/:query', verifyToken, async (req, res) => {
     try {
         const { query } = req.params;
         const { page = 1, limit = 10 } = req.query;
