@@ -91,3 +91,21 @@ authApiClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+export const forgotPasswordApi = async (email: string): Promise<AuthResponse> => {
+    try {
+        const response = await authApiClient.post<AuthResponse>('/forgot-password', { email });
+        return response.data;
+    } catch (error: any) {
+        return error.response?.data || { success: false, message: error.message || 'An error occurred during password reset request.' };
+    }
+};
+
+export const resetPasswordApi = async (token: string, password: string): Promise<AuthResponse> => {
+    try {
+        const response = await authApiClient.post<AuthResponse>(`/reset-password/${token}`, { password });
+        return response.data;
+    } catch (error: any) {
+        return error.response?.data || { success: false, message: error.message || 'An error occurred during password reset.' };
+    }
+};
+

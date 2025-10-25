@@ -238,6 +238,25 @@ const LoginPage: React.FC = () => {
                                         }}
                                     />
 
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <MuiLink
+                                            component={Link}
+                                            to="/forgot-password"
+                                            sx={{ 
+                                                color: theme.palette.primary.main,
+                                                textDecoration: 'none',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 500,
+                                                '&:hover': {
+                                                    textDecoration: 'underline',
+                                                    color: theme.palette.primary.dark,
+                                                }
+                                            }}
+                                        >
+                                            Quên mật khẩu?
+                                        </MuiLink>
+                                    </Box>
+
                                     <Button
                                         type="submit"
                                         fullWidth
