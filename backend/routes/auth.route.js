@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const { generateTokenAndSetCookie } = require("../utils/generateTokenAndSetCookie.js");
 const { User } = require("../schemas/User.js");
 const { verifyToken } = require("../middleware/verifyToken.js");
+const { sendPasswordResetEmail, sendResetSuccessEmail } = require("../mailtrap/emails.js");
 
 
 const router = express.Router();
@@ -171,6 +172,8 @@ router.post("/forgot-password", async (req, res) => {
 
 		const resetURL = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
 
+		await sendPasswordResetEmail(user.email, resetURL);
+
 		res.status(200).json({ success: true, message: "If an account with that email exists, a password reset link has been sent." });
 	} catch (error) {
 		console.error("Error in forgotPassword: ", error);
@@ -206,6 +209,8 @@ router.post("/reset-password/:token", async (req, res) => {
 		user.resetPasswordExpiresAt = undefined;
 		user.isVerified = true;
 		await user.save();
+
+		await sendResetSuccessEmail(user.email);
 
 		res.status(200).json({ success: true, message: "Password reset successful. Please log in with your new password." });
 	} catch (error) {
