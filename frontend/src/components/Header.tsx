@@ -82,8 +82,13 @@ const Header: React.FC = () => {
                 {t('Dashboard')}
               </Button>
               <Button color="inherit" component={Link} to="/subtitles">
-                Subtitles
-              </Button>     
+                {t('Subtitles')}
+              </Button>
+              {user?.role === 'admin' && (
+                <Button color="inherit" component={Link} to="/admin">
+                  Admin Panel
+                </Button>
+              )}
               <IconButton
                 size="large"
                 aria-label="account of current user"

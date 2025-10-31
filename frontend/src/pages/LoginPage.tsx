@@ -238,6 +238,25 @@ const LoginPage: React.FC = () => {
                                         }}
                                     />
 
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <MuiLink
+                                            component={Link}
+                                            to="/forgot-password"
+                                            sx={{ 
+                                                color: theme.palette.primary.main,
+                                                textDecoration: 'none',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 500,
+                                                '&:hover': {
+                                                    textDecoration: 'underline',
+                                                    color: theme.palette.primary.dark,
+                                                }
+                                            }}
+                                        >
+                                            Forgotpassword?
+                                        </MuiLink>
+                                    </Box>
+
                                     <Button
                                         type="submit"
                                         fullWidth
@@ -266,33 +285,6 @@ const LoginPage: React.FC = () => {
                                         }}
                                     >
                                         {isLoading ? 'Signing In...' : 'Sign In'}
-                                    </Button>
-
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        onClick={handleCreateTestUser}
-                                        disabled={isLoading}
-                                        sx={{
-                                            py: 1.5,
-                                            mt: 2,
-                                            borderRadius: 2,
-                                            fontSize: '1rem',
-                                            fontWeight: 500,
-                                            textTransform: 'none',
-                                            borderColor: theme.palette.primary.main,
-                                            color: theme.palette.primary.main,
-                                            '&:hover': {
-                                                borderColor: theme.palette.primary.dark,
-                                                background: alpha(theme.palette.primary.main, 0.1),
-                                            },
-                                            '&:disabled': {
-                                                borderColor: alpha(theme.palette.primary.main, 0.3),
-                                                color: alpha(theme.palette.primary.main, 0.3),
-                                            }
-                                        }}
-                                    >
-                                        Create Test User & Login
                                     </Button>
                                 </Stack>
                             </Box>

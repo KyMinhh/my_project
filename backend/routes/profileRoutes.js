@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/verifyToken');
-const { User } = require('../models/User');
+const { User } = require('../schemas/User');
 const multer = require('multer');
 const path = require('path');
 
@@ -168,7 +168,7 @@ router.delete('/avatar', verifyToken, async (req, res) => {
 });
 
 // Search users
-router.get('/search/:query', async (req, res) => {
+router.get('/search/:query', verifyToken, async (req, res) => {
     try {
         const { query } = req.params;
         const { page = 1, limit = 10 } = req.query;

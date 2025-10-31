@@ -10,41 +10,66 @@ import {
     Alert,
     Link as MuiLink,
     InputAdornment,
+    IconButton,
     useTheme,
     alpha,
     Fade,
     Stack
 } from '@mui/material';
-import { Link } from 'react-router-dom';
-import { forgotPasswordApi } from '../services/authApi';
-import EmailIcon from '@mui/icons-material/Email';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { resetPasswordApi } from '../services/authApi';
+import LockIcon from '@mui/icons-material/Lock';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import LockResetIcon from '@mui/icons-material/LockReset';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-const ForgotPasswordPage: React.FC = () => {
-    const [email, setEmail] = useState('');
+const ResetPasswordPage: React.FC = () => {
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const { token } = useParams<{ token: string }>();
+    const navigate = useNavigate();
     const theme = useTheme();
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setError('');
         setSuccess('');
+
+        if (password !== confirmPassword) {
+            setError('Mật khẩu xác nhận không khớp');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Mật khẩu phải có ít nhất 6 ký tự');
+            return;
+        }
+
+        if (!token) {
+            setError('Token không hợp lệ');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            const response = await forgotPasswordApi(email);
+            const response = await resetPasswordApi(token, password);
             
             if (response.success) {
-                setSuccess('Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.');
-                setEmail('');
+                setSuccess('Đặt lại mật khẩu thành công! Đang chuyển hướng đến trang đăng nhập...');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
             } else {
                 setError(response.message || 'Có lỗi xảy ra, vui lòng thử lại');
             }
         } catch (error: any) {
-            console.error('Forgot password error:', error);
+            console.error('Reset password error:', error);
             setError('Có lỗi xảy ra, vui lòng thử lại');
         } finally {
             setIsLoading(false);
@@ -101,14 +126,14 @@ const ForgotPasswordPage: React.FC = () => {
                                         WebkitTextFillColor: 'transparent'
                                     }}
                                 >
-                                    Quên mật khẩu?
+                                    Đặt lại mật khẩu
                                 </Typography>
                                 <Typography 
                                     variant="body1" 
                                     color="text.secondary"
                                     sx={{ fontSize: '1.1rem' }}
                                 >
-                                    Nhập email của bạn để nhận link đặt lại mật khẩu
+                                    Nhập mật khẩu mới của bạn
                                 </Typography>
                             </Box>
 
@@ -146,16 +171,69 @@ const ForgotPasswordPage: React.FC = () => {
                                 <Stack spacing={3}>
                                     <TextField
                                         fullWidth
-                                        label="Email Address"
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        label="Mật khẩu mới"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
                                         required
                                         variant="outlined"
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <EmailIcon sx={{ color: theme.palette.primary.main }} />
+                                                    <LockIcon sx={{ color: theme.palette.primary.main }} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        edge="end"
+                                                        aria-label="toggle password visibility"
+                                                    >
+                                                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        }}
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: 2,
+                                                '& fieldset': {
+                                                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                                                },
+                                                '&:hover fieldset': {
+                                                    borderColor: alpha(theme.palette.primary.main, 0.5),
+                                                },
+                                                '&.Mui-focused fieldset': {
+                                                    borderColor: theme.palette.primary.main,
+                                                },
+                                            },
+                                        }}
+                                    />
+
+                                    <TextField
+                                        fullWidth
+                                        label="Xác nhận mật khẩu"
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        required
+                                        variant="outlined"
+                                        InputProps={{
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <LockIcon sx={{ color: theme.palette.primary.main }} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                        edge="end"
+                                                        aria-label="toggle confirm password visibility"
+                                                    >
+                                                        {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                    </IconButton>
                                                 </InputAdornment>
                                             ),
                                         }}
@@ -202,7 +280,7 @@ const ForgotPasswordPage: React.FC = () => {
                                             transition: 'all 0.2s ease-in-out'
                                         }}
                                     >
-                                        {isLoading ? 'Đang gửi...' : 'Gửi link đặt lại mật khẩu'}
+                                        {isLoading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
                                     </Button>
                                 </Stack>
                             </Box>
@@ -215,17 +293,12 @@ const ForgotPasswordPage: React.FC = () => {
                                         color: theme.palette.primary.main,
                                         textDecoration: 'none',
                                         fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 1,
                                         '&:hover': {
                                             textDecoration: 'underline',
                                             color: theme.palette.primary.dark,
                                         }
                                     }}
                                 >
-                                    <ArrowBackIcon fontSize="small" />
                                     Quay lại đăng nhập
                                 </MuiLink>
                             </Box>
@@ -237,4 +310,4 @@ const ForgotPasswordPage: React.FC = () => {
     );
 };
 
-export default ForgotPasswordPage;
+export default ResetPasswordPage;
