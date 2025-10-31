@@ -40,37 +40,12 @@ import {
   CameraAlt as CameraIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-
-interface UserProfile {
-  _id: string;
-  name: string;
-  email: string;
-  displayName?: string;
-  bio?: string;
-  avatar?: string;
-  location?: string;
-  website?: string;
-  phoneNumber?: string;
-  socialLinks?: {
-    twitter?: string;
-    linkedin?: string;
-    github?: string;
-    instagram?: string;
-  };
-  profileVisibility: 'public' | 'private';
-  stats: {
-    posts: number;
-    followers: number;
-    following: number;
-    profileViews: number;
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { getMyProfile, updateMyProfile, uploadAvatar, UserProfile, UpdateProfileData } from '../api/profileApi';
 
 const ProfilePage: React.FC = () => {
   const { user: currentUser } = useAuth();
   const theme = useTheme();
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +59,12 @@ const ProfilePage: React.FC = () => {
   const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [socialLinks, setSocialLinks] = useState({
+    twitter: '',
+    linkedin: '',
+    github: '',
+    instagram: ''
+  });
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -91,47 +72,31 @@ const ProfilePage: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        if (currentUser) {
-          const mockProfile: UserProfile = {
-            _id: currentUser._id,
-            name: currentUser.name || '',
-            email: currentUser.email,
-            displayName: currentUser.name || '',
-            bio: 'Chào mọi người! Tôi là một developer đam mê công nghệ và yêu thích việc học hỏi những điều mới.',
-            avatar: undefined,
-            location: 'Hà Nội, Việt Nam',
-            website: 'https://github.com/yourname',
-            phoneNumber: '+84 123 456 789',
-            socialLinks: {
-              twitter: 'yourname',
-              linkedin: 'yourname',
-              github: 'yourname',
-              instagram: 'yourname'
-            },
-            profileVisibility: 'public',
-            stats: {
-              posts: 42,
-              followers: 256,
-              following: 189,
-              profileViews: 1524
-            },
-            createdAt: new Date(currentUser.lastLogin || new Date()),
-            updatedAt: new Date()
-          };
-          
-          setProfile(mockProfile);
-          
-          // Initialize form data
-          setDisplayName(mockProfile.displayName || '');
-          setBio(mockProfile.bio || '');
-          setLocation(mockProfile.location || '');
-          setWebsite(mockProfile.website || '');
-          setPhoneNumber(mockProfile.phoneNumber || '');
-        } else {
+        if (!currentUser) {
           setError('Please login to view your profile');
+          setLoading(false);
+          return;
         }
+
+        // Fetch real profile data from API
+        const profileData = await getMyProfile();
+        setProfile(profileData);
+        
+        // Initialize form data with real values
+        setDisplayName(profileData.displayName || profileData.name || '');
+        setBio(profileData.bio || '');
+        setLocation(profileData.location || '');
+        setWebsite(profileData.website || '');
+        setPhoneNumber(profileData.phoneNumber || '');
+        setSocialLinks({
+          twitter: profileData.socialLinks?.twitter || '',
+          linkedin: profileData.socialLinks?.linkedin || '',
+          github: profileData.socialLinks?.github || '',
+          instagram: profileData.socialLinks?.instagram || ''
+        });
       } catch (error: any) {
-        setError('Failed to load profile');
+        console.error('Error loading profile:', error);
+        setError(error.message || 'Failed to load profile');
       } finally {
         setLoading(false);
       }
@@ -142,22 +107,32 @@ const ProfilePage: React.FC = () => {
 
   const handleEditSubmit = async () => {
     try {
-      if (profile) {
-        const updatedProfile: UserProfile = {
-          ...profile,
-          displayName: displayName,
-          bio: bio,
-          location: location,
-          website: website,
-          phoneNumber: phoneNumber,
-          updatedAt: new Date()
-        };
-        
-        setProfile(updatedProfile);
-        setEditDialogOpen(false);
-      }
+      setError(null);
+      
+      const updateData: UpdateProfileData = {
+        displayName,
+        bio,
+        location,
+        website,
+        phoneNumber,
+        socialLinks: {
+          twitter: socialLinks.twitter,
+          linkedin: socialLinks.linkedin,
+          github: socialLinks.github,
+          instagram: socialLinks.instagram
+        }
+      };
+      
+      // Call API to update profile
+      const updatedProfile = await updateMyProfile(updateData);
+      setProfile(updatedProfile);
+      setEditDialogOpen(false);
+      
+      // Show success message
+      console.log('Profile updated successfully!');
     } catch (error: any) {
-      setError('Failed to update profile');
+      console.error('Error updating profile:', error);
+      setError(error.message || 'Failed to update profile');
     }
   };
 
@@ -167,18 +142,16 @@ const ProfilePage: React.FC = () => {
 
     try {
       setUploadingAvatar(true);
+      setError(null);
       
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call API to upload avatar
+      const updatedProfile = await uploadAvatar(file);
+      setProfile(updatedProfile);
       
-      if (profile) {
-        setProfile({
-          ...profile,
-          avatar: URL.createObjectURL(file)
-        });
-      }
+      console.log('Avatar uploaded successfully!');
     } catch (error: any) {
-      setError('Failed to upload avatar');
+      console.error('Error uploading avatar:', error);
+      setError(error.message || 'Failed to upload avatar');
     } finally {
       setUploadingAvatar(false);
     }
@@ -241,7 +214,7 @@ const ProfilePage: React.FC = () => {
             {/* Avatar Section */}
             <Box position="relative" alignSelf={{ xs: 'center', md: 'flex-start' }}>
               <Avatar
-                src={profile.avatar}
+                src={profile.avatar ? `${API_BASE_URL}${profile.avatar}` : undefined}
                 sx={{ 
                   width: 140, 
                   height: 140, 
@@ -449,113 +422,123 @@ const ProfilePage: React.FC = () => {
         </Grid>
 
         {/* Social Links */}
-        <Paper 
-          elevation={1} 
-          sx={{ 
-            p: 4,
-            borderRadius: 3,
-            background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-            border: `1px solid ${alpha(theme.palette.secondary.main, 0.1)}`
-          }}
-        >
-          <Typography 
-            variant="h5" 
-            gutterBottom 
+        {(profile.socialLinks?.twitter || profile.socialLinks?.linkedin || profile.socialLinks?.github || profile.socialLinks?.instagram) && (
+          <Paper 
+            elevation={1} 
             sx={{ 
-              fontWeight: 600, 
-              color: theme.palette.text.primary,
-              mb: 3
+              p: 4,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.05)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.secondary.main, 0.1)}`
             }}
           >
-            Liên kết xã hội
-          </Typography>
-          
-          <Stack direction="row" spacing={2} flexWrap="wrap">
-            <Chip
-              icon={<TwitterIcon />}
-              label="@yourname"
-              component="a"
-              href="https://twitter.com/yourname"
-              target="_blank"
-              clickable
-              size="medium"
+            <Typography 
+              variant="h5" 
+              gutterBottom 
               sx={{ 
-                borderRadius: 2,
-                background: '#1DA1F2',
-                color: 'white',
-                fontWeight: 500,
-                px: 2,
-                '&:hover': { 
-                  background: '#1A91DA',
-                  transform: 'translateY(-2px)'
-                }
+                fontWeight: 600, 
+                color: theme.palette.text.primary,
+                mb: 3
               }}
-            />
+            >
+              Liên kết xã hội
+            </Typography>
             
-            <Chip
-              icon={<LinkedInIcon />}
-              label="yourname"
-              component="a"
-              href="https://linkedin.com/in/yourname"
-              target="_blank"
-              clickable
-              size="medium"
-              sx={{ 
-                borderRadius: 2,
-                background: '#0077B5',
-                color: 'white',
-                fontWeight: 500,
-                px: 2,
-                '&:hover': { 
-                  background: '#006399',
-                  transform: 'translateY(-2px)'
-                }
-              }}
-            />
-            
-            <Chip
-              icon={<GitHubIcon />}
-              label="yourname"
-              component="a"
-              href="https://github.com/yourname"
-              target="_blank"
-              clickable
-              size="medium"
-              sx={{ 
-                borderRadius: 2,
-                background: '#333',
-                color: 'white',
-                fontWeight: 500,
-                px: 2,
-                '&:hover': { 
-                  background: '#24292e',
-                  transform: 'translateY(-2px)'
-                }
-              }}
-            />
-            
-            <Chip
-              icon={<InstagramIcon />}
-              label="@yourname"
-              component="a"
-              href="https://instagram.com/yourname"
-              target="_blank"
-              clickable
-              size="medium"
-              sx={{ 
-                borderRadius: 2,
-                background: 'linear-gradient(45deg, #F56040 30%, #E1306C 90%)',
-                color: 'white',
-                fontWeight: 500,
-                px: 2,
-                '&:hover': { 
-                  background: 'linear-gradient(45deg, #E1306C 30%, #F56040 90%)',
-                  transform: 'translateY(-2px)'
-                }
-              }}
-            />
-          </Stack>
-        </Paper>
+            <Stack direction="row" spacing={2} flexWrap="wrap">
+              {profile.socialLinks?.twitter && (
+                <Chip
+                  icon={<TwitterIcon />}
+                  label={`@${profile.socialLinks.twitter}`}
+                  component="a"
+                  href={`https://twitter.com/${profile.socialLinks.twitter}`}
+                  target="_blank"
+                  clickable
+                  size="medium"
+                  sx={{ 
+                    borderRadius: 2,
+                    background: '#1DA1F2',
+                    color: 'white',
+                    fontWeight: 500,
+                    px: 2,
+                    '&:hover': { 
+                      background: '#1A91DA',
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                />
+              )}
+              
+              {profile.socialLinks?.linkedin && (
+                <Chip
+                  icon={<LinkedInIcon />}
+                  label={profile.socialLinks.linkedin}
+                  component="a"
+                  href={`https://linkedin.com/in/${profile.socialLinks.linkedin}`}
+                  target="_blank"
+                  clickable
+                  size="medium"
+                  sx={{ 
+                    borderRadius: 2,
+                    background: '#0077B5',
+                    color: 'white',
+                    fontWeight: 500,
+                    px: 2,
+                    '&:hover': { 
+                      background: '#006399',
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                />
+              )}
+              
+              {profile.socialLinks?.github && (
+                <Chip
+                  icon={<GitHubIcon />}
+                  label={profile.socialLinks.github}
+                  component="a"
+                  href={`https://github.com/${profile.socialLinks.github}`}
+                  target="_blank"
+                  clickable
+                  size="medium"
+                  sx={{ 
+                    borderRadius: 2,
+                    background: '#333',
+                    color: 'white',
+                    fontWeight: 500,
+                    px: 2,
+                    '&:hover': { 
+                      background: '#24292e',
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                />
+              )}
+              
+              {profile.socialLinks?.instagram && (
+                <Chip
+                  icon={<InstagramIcon />}
+                  label={`@${profile.socialLinks.instagram}`}
+                  component="a"
+                  href={`https://instagram.com/${profile.socialLinks.instagram}`}
+                  target="_blank"
+                  clickable
+                  size="medium"
+                  sx={{ 
+                    borderRadius: 2,
+                    background: 'linear-gradient(45deg, #F56040 30%, #E1306C 90%)',
+                    color: 'white',
+                    fontWeight: 500,
+                    px: 2,
+                    '&:hover': { 
+                      background: 'linear-gradient(45deg, #E1306C 30%, #F56040 90%)',
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                />
+              )}
+            </Stack>
+          </Paper>
+        )}
 
         {/* Edit Profile Dialog */}
         <Dialog
@@ -656,6 +639,73 @@ const ProfilePage: React.FC = () => {
                   placeholder="https://your-website.com"
                   InputProps={{
                     startAdornment: <LinkIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+
+              {/* Social Links Section */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
+                  Liên kết xã hội
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Twitter"
+                  value={socialLinks.twitter}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+                  variant="outlined"
+                  placeholder="username"
+                  InputProps={{
+                    startAdornment: <TwitterIcon sx={{ mr: 1, color: '#1DA1F2' }} />
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="LinkedIn"
+                  value={socialLinks.linkedin}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
+                  variant="outlined"
+                  placeholder="username"
+                  InputProps={{
+                    startAdornment: <LinkedInIcon sx={{ mr: 1, color: '#0077B5' }} />
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="GitHub"
+                  value={socialLinks.github}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, github: e.target.value })}
+                  variant="outlined"
+                  placeholder="username"
+                  InputProps={{
+                    startAdornment: <GitHubIcon sx={{ mr: 1, color: '#333' }} />
+                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Instagram"
+                  value={socialLinks.instagram}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+                  variant="outlined"
+                  placeholder="username"
+                  InputProps={{
+                    startAdornment: <InstagramIcon sx={{ mr: 1, color: '#E1306C' }} />
                   }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />

@@ -50,6 +50,7 @@ interface SubtitleExporterProps {
   open: boolean;
   onClose: () => void;
   segments: SubtitleSegment[];
+  jobId?: string;
   videoPath?: string;
   transcripts?: { [language: string]: SubtitleSegment[] };
 }
@@ -58,6 +59,7 @@ const SubtitleExporter: React.FC<SubtitleExporterProps> = ({
   open,
   onClose,
   segments,
+  jobId,
   videoPath,
   transcripts,
 }) => {
@@ -89,13 +91,23 @@ const SubtitleExporter: React.FC<SubtitleExporterProps> = ({
     setSuccess(null);
 
     try {
-      const response = await subtitleApi.generateSubtitles({
-        segments,
+      // Prefer jobId over segments for better efficiency
+      const requestData: any = {
         format,
         language,
-      });
+      };
 
-      setSuccess(`Subtitle file generated successfully!`);
+      if (jobId) {
+        requestData.jobId = jobId;
+        console.log('[SubtitleExporter] Generating subtitles using jobId:', jobId);
+      } else {
+        requestData.segments = segments;
+        console.log('[SubtitleExporter] Generating subtitles using segments array');
+      }
+
+      const response = await subtitleApi.generateSubtitles(requestData);
+
+      setSuccess(`✅ Subtitle file generated successfully!`);
       downloadSubtitleFile(response.subtitlePath);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to generate subtitle');

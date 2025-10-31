@@ -5,12 +5,17 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "export-db": "node export-database.js",
+    "import-db": "node import-database.js",
+    "compress-backup": "node compress-backup.js",
+    "backup": "npm run export-db && npm run compress-backup"
   },
   "dependencies": {
     "@google-cloud/speech": "^6.7.1",
     "@google-cloud/storage": "^7.15.2",
     "@google-cloud/translate": "^9.2.0",
+    "archiver": "^6.0.2",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

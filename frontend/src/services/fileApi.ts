@@ -227,6 +227,55 @@ export const extractMultipleVideoSegmentsApi = async (
     }
 };
 
+// Extract multiple video segments by jobId (NEW)
+export const extractMultipleVideoSegmentsByJobIdApi = async (
+    jobId: string,
+    segments: SegmentTime[]
+): Promise<ExtractMultipleSegmentsResponse> => {
+    if (!jobId || !segments || segments.length === 0) {
+        return { success: false, message: "Job ID and segments are required." };
+    }
+    try {
+        const payload = { jobId, segments };
+        console.log('[API] Sending POST /editor/extract-multiple-segments with jobId payload:', payload);
+        const response = await apiClient.post<ExtractMultipleSegmentsResponse>('/editor/extract-multiple-segments', payload);
+        console.log("[API] Received response from /editor/extract-multiple-segments:", response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error("API Extract Multiple Segments By JobId Error:", error);
+        const errorData: ExtractMultipleSegmentsResponse = error.response?.data || {
+            success: false,
+            message: error.message || 'Unknown error extracting multiple segments by jobId'
+        };
+        return errorData;
+    }
+};
+
+// Extract single video segment by jobId and time range
+export const extractSingleVideoSegmentApi = async (
+    jobId: string,
+    startTime: number,
+    endTime: number
+): Promise<ExtractMultipleSegmentsResponse> => {
+    if (!jobId || startTime === undefined || endTime === undefined) {
+        return { success: false, message: "Job ID, start time, and end time are required." };
+    }
+    try {
+        const payload = { jobId, startTime, endTime };
+        console.log('[API] Sending POST /editor/extract-video with payload:', payload);
+        const response = await apiClient.post<ExtractMultipleSegmentsResponse>('/editor/extract-video', payload);
+        console.log("[API] Received response from /editor/extract-video:", response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error("API Extract Single Video Segment Error:", error);
+        const errorData: ExtractMultipleSegmentsResponse = error.response?.data || {
+            success: false,
+            message: error.message || 'Unknown error extracting video segment'
+        };
+        return errorData;
+    }
+};
+
 // Translate job API
 export const translateJobApi = async (
     jobId: string,

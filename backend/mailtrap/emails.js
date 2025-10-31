@@ -50,6 +50,19 @@ const sendWelcomeEmail = async (email, name) => {
 };
 
 const sendPasswordResetEmail = async (email, resetURL) => {
+	// Development mode: Chỉ log ra console, không gửi email thật
+	if (process.env.NODE_ENV === 'development' || !process.env.MAILTRAP_TOKEN) {
+		console.log('\n📧 =======================================');
+		console.log('📧 PASSWORD RESET EMAIL (DEV MODE)');
+		console.log('📧 =======================================');
+		console.log('📧 To:', email);
+		console.log('📧 Reset URL:', resetURL);
+		console.log('📧 Copy link trên và paste vào browser để reset password');
+		console.log('📧 =======================================\n');
+		return { success: true, messageId: 'dev-mode' };
+	}
+
+	// Production mode: Gửi email thật qua Mailtrap
 	const recipient = [{ email }];
 
 	try {
@@ -60,14 +73,28 @@ const sendPasswordResetEmail = async (email, resetURL) => {
 			html: PASSWORD_RESET_REQUEST_TEMPLATE.replace("{resetURL}", resetURL),
 			category: "Password Reset",
 		});
+		
+		console.log("✅ Password reset email sent successfully");
+		return response;
 	} catch (error) {
-		console.error(`Error sending password reset email`, error);
-
-		throw new Error(`Error sending password reset email: ${error}`);
+		console.error(`❌ Error sending password reset email:`, error.message);
+		
+		// Fallback: Log URL nếu gửi email thất bại
+		console.log('\n📧 Email gửi thất bại, đây là reset URL:');
+		console.log('📧 Reset URL:', resetURL, '\n');
+		
+		throw new Error(`Error sending password reset email: ${error.message}`);
 	}
 };
 
 const sendResetSuccessEmail = async (email) => {
+	// Development mode: Chỉ log ra console
+	if (process.env.NODE_ENV === 'development' || !process.env.MAILTRAP_TOKEN) {
+		console.log('\n✅ Password reset success email (DEV MODE) sent to:', email, '\n');
+		return { success: true, messageId: 'dev-mode' };
+	}
+
+	// Production mode
 	const recipient = [{ email }];
 
 	try {
@@ -79,11 +106,12 @@ const sendResetSuccessEmail = async (email) => {
 			category: "Password Reset",
 		});
 
-		console.log("Password reset email sent successfully", response);
+		console.log("✅ Password reset success email sent successfully", response);
+		return response;
 	} catch (error) {
-		console.error(`Error sending password reset success email`, error);
-
-		throw new Error(`Error sending password reset success email: ${error}`);
+		console.error(`❌ Error sending password reset success email:`, error.message);
+		// Không throw error để không block reset password flow
+		return { success: false, error: error.message };
 	}
 };
 

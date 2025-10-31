@@ -25,7 +25,8 @@ export interface SubtitleSegment {
 }
 
 export interface GenerateSubtitlesRequest {
-  segments: SubtitleSegment[];
+  segments?: SubtitleSegment[];
+  jobId?: string;
   format?: 'srt' | 'vtt';
   language?: string;
 }
