@@ -96,7 +96,6 @@ const userRoleSchema = new mongoose.Schema({
 });
 
 // Indexes
-userRoleSchema.index({ userId: 1 });
 userRoleSchema.index({ role: 1 });
 userRoleSchema.index({ isDeleted: 1 });
 
