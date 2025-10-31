@@ -63,12 +63,9 @@ export const loginUserApi = async (payload: LoginPayload): Promise<AuthResponse>
 
 export const logoutUserApi = async (): Promise<AuthResponse> => {
     try {
-        // Backend có thể không yêu cầu token cho logout, hoặc có thể
-        // Nếu backend dùng httpOnly cookie, thì request này sẽ tự gửi cookie
-        const response = await authApiClient.get<AuthResponse>('/logout'); // Hoặc POST tùy backend
+        const response = await authApiClient.post<AuthResponse>('/logout');
         return response.data;
     } catch (error: any) {
-        // Ngay cả khi logout API lỗi, client vẫn nên xóa token
         console.error("Logout API error:", error);
         return error.response?.data || { success: false, message: error.message || 'Logout API call failed' };
     }
@@ -93,4 +90,22 @@ authApiClient.interceptors.request.use(
     },
     (error) => Promise.reject(error)
 );
+
+export const forgotPasswordApi = async (email: string): Promise<AuthResponse> => {
+    try {
+        const response = await authApiClient.post<AuthResponse>('/forgot-password', { email });
+        return response.data;
+    } catch (error: any) {
+        return error.response?.data || { success: false, message: error.message || 'An error occurred during password reset request.' };
+    }
+};
+
+export const resetPasswordApi = async (token: string, password: string): Promise<AuthResponse> => {
+    try {
+        const response = await authApiClient.post<AuthResponse>(`/reset-password/${token}`, { password });
+        return response.data;
+    } catch (error: any) {
+        return error.response?.data || { success: false, message: error.message || 'An error occurred during password reset.' };
+    }
+};
 

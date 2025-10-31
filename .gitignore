@@ -190,16 +190,3 @@ frontend/public/uploads/
 *.mp3
 *.flac
 backend/outputs/*.json  # Chỉ ignore JSON trong outputs
-
-# Database backups and exports
-backend/backups/
-*.json.backup
-*.bson
-database_dump/
-db_dump/
-
-# Compressed backup files
-*.zip
-*.tar.gz
-*.tar
-*.rar

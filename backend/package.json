@@ -2,14 +2,10 @@
   "name": "video-to-text-app",
   "version": "1.0.0",
   "description": "Video to Text application using Vosk API",
-  "main": "app.js",
+  "main": "bin/www",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js",
-    "export-db": "node export-database.js",
-    "import-db": "node import-database.js",
-    "compress-backup": "node compress-backup.js",
-    "backup": "npm run export-db && npm run compress-backup"
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "@google-cloud/speech": "^6.7.1",
