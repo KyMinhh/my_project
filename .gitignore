@@ -190,3 +190,4 @@ frontend/public/uploads/
 *.mp3
 *.flac
 backend/outputs/*.json  # Chỉ ignore JSON trong outputs
+backend/backups/
