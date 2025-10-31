@@ -4,8 +4,16 @@
   "description": "Video to Text application using Vosk API",
   "main": "bin/www",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
+    "start_server": "node app.js",
+    "dev_server": "nodemon app.js",
+    "start": "node bin/www",
+    "dev": "nodemon --ignore node_modules --ignore uploads --ignore outputs --ignore backups --ignore keys bin/www"
+  },
+  "nodemonConfig": {
+    "watch": [".", "bin"],
+    "ignore": ["node_modules", "uploads", "outputs", "backups", "keys", "*.log"],
+    "ext": "js,json",
+    "delay": 1000
   },
   "dependencies": {
     "@google-cloud/speech": "^6.7.1",
