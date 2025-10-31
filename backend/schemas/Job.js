@@ -39,7 +39,9 @@ const jobSchema = new mongoose.Schema({
         type: String,
         enum: ['upload', 'youtube', 'tiktok'],
         default: 'upload'
-    }
+    },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null }
 }, {
     timestamps: true
 });

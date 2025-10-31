@@ -17,7 +17,10 @@ router.get('/users', verifyToken, isAdmin, catchAsync(async (req, res, next) => 
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     
-    const filter = { isDeleted: { $ne: true } };
+    // Support includeDeleted parameter to show soft-deleted users
+    const includeDeleted = req.query.includeDeleted === 'true';
+    const filter = includeDeleted ? {} : { isDeleted: { $ne: true } };
+    
     if (req.query.role) filter.role = req.query.role;
     if (req.query.search) {
         filter.$or = [
@@ -144,7 +147,10 @@ router.get('/jobs', verifyToken, isAdminOrModerator, catchAsync(async (req, res,
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     
-    const filter = {};
+    // Support includeDeleted parameter
+    const includeDeleted = req.query.includeDeleted === 'true';
+    const filter = includeDeleted ? {} : { isDeleted: { $ne: true } };
+    
     if (req.query.status) filter.status = req.query.status;
     if (req.query.userId) filter.userId = req.query.userId;
 
@@ -168,30 +174,61 @@ router.get('/jobs', verifyToken, isAdminOrModerator, catchAsync(async (req, res,
     });
 }));
 
-// Delete job (soft delete if you add isDeleted field)
+// Delete job (soft delete)
 router.delete('/jobs/:id', verifyToken, isAdmin, catchAsync(async (req, res, next) => {
-    const job = await Job.findByIdAndDelete(req.params.id);
+    const job = await Job.findById(req.params.id);
     
     if (!job) {
         return next(new AppError('Job not found', 404));
     }
+
+    job.isDeleted = true;
+    job.deletedAt = new Date();
+    await job.save();
 
     await Activity.create({
         userId: req.user.id,
         action: 'delete',
         resourceType: 'job',
         resourceId: job._id,
-        details: 'Deleted job'
+        details: 'Soft deleted job'
     });
 
     res.json({ success: true, message: 'Job deleted successfully' });
+}));
+
+// Restore job
+router.post('/jobs/:id/restore', verifyToken, isAdmin, catchAsync(async (req, res, next) => {
+    const job = await Job.findById(req.params.id);
+    
+    if (!job) {
+        return next(new AppError('Job not found', 404));
+    }
+
+    job.isDeleted = false;
+    job.deletedAt = null;
+    await job.save();
+
+    await Activity.create({
+        userId: req.user.id,
+        action: 'update',
+        resourceType: 'job',
+        resourceId: job._id,
+        details: 'Restored job'
+    });
+
+    res.json({ success: true, data: job, message: 'Job restored successfully' });
 }));
 
 // ==================== SHARE MANAGEMENT ====================
 
 // Get all shares
 router.get('/shares', verifyToken, isAdminOrModerator, catchAsync(async (req, res, next) => {
-    const shares = await Share.find()
+    // Support includeDeleted parameter
+    const includeDeleted = req.query.includeDeleted === 'true';
+    const filter = includeDeleted ? {} : { isDeleted: { $ne: true } };
+    
+    const shares = await Share.find(filter)
         .populate('jobId', 'fileName originalName')
         .populate('ownerId', 'name email')
         .sort({ createdAt: -1 })
@@ -221,6 +258,29 @@ router.delete('/shares/:id', verifyToken, isAdmin, catchAsync(async (req, res, n
     });
 
     res.json({ success: true, message: 'Share deleted successfully' });
+}));
+
+// Restore share
+router.post('/shares/:id/restore', verifyToken, isAdmin, catchAsync(async (req, res, next) => {
+    const share = await Share.findById(req.params.id);
+    
+    if (!share) {
+        return next(new AppError('Share not found', 404));
+    }
+
+    share.isDeleted = false;
+    share.deletedAt = null;
+    await share.save();
+
+    await Activity.create({
+        userId: req.user.id,
+        action: 'update',
+        resourceType: 'share',
+        resourceId: share._id,
+        details: 'Restored share'
+    });
+
+    res.json({ success: true, data: share, message: 'Share restored successfully' });
 }));
 
 // ==================== ACTIVITY LOG ====================
