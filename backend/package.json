@@ -5,8 +5,13 @@
   "main": "bin/www",
   "scripts": {
     "start": "node bin/www",
-    "dev": "nodemon bin/www",
-    "create-admin": "node scripts/createAdmin.js"
+    "dev": "nodemon --ignore node_modules --ignore uploads --ignore outputs --ignore backups --ignore keys bin/www"
+  },
+  "nodemonConfig": {
+    "watch": [".", "bin"],
+    "ignore": ["node_modules", "uploads", "outputs", "backups", "keys", "*.log"],
+    "ext": "js,json",
+    "delay": 1000
   },
   "dependencies": {
     "@google-cloud/speech": "^6.7.1",
