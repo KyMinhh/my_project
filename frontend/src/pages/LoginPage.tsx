@@ -253,7 +253,7 @@ const LoginPage: React.FC = () => {
                                                 }
                                             }}
                                         >
-                                            Quên mật khẩu?
+                                            Forgotpassword?
                                         </MuiLink>
                                     </Box>
 

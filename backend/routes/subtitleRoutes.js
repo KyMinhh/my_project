@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../middleware/verifyToken');
+const Job = require('../schemas/Job');
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 const subtitlesDir = path.join(uploadsDir, 'subtitles');
@@ -16,13 +17,61 @@ async function ensureDirectories() {
   await fs.mkdir(videosDir, { recursive: true });
 }
 
+// Helper function to validate and clean MongoDB ObjectId
+function validateObjectId(id, fieldName = 'ID') {
+  if (!id) return null;
+  
+  const cleanId = id.toString().trim();
+  
+  // MongoDB ObjectId must be exactly 24 hexadecimal characters
+  if (!/^[a-fA-F0-9]{24}$/.test(cleanId)) {
+    throw new Error(
+      `Invalid ${fieldName} format. Expected 24 hex characters, got: "${cleanId}" (${cleanId.length} chars)`
+    );
+  }
+  
+  return cleanId;
+}
+
 // Generate subtitles
 router.post('/generate', verifyToken, async (req, res) => {
   try {
-    const { segments, format = 'srt', language = 'en' } = req.body;
+    const { segments, jobId, format = 'srt', language = 'en' } = req.body;
 
-    if (!segments || !Array.isArray(segments)) {
-      return res.status(400).json({ error: 'Segments array is required' });
+    let actualSegments = segments;
+
+    // If jobId is provided, fetch segments from database
+    if (jobId && !segments) {
+      try {
+        // Validate and clean jobId (must be exactly 24 hex characters)
+        const cleanJobId = validateObjectId(jobId, 'jobId');
+
+        const job = await Job.findById(cleanJobId);
+        if (!job) {
+          return res.status(404).json({ error: 'Job not found' });
+        }
+        if (!job.segments || job.segments.length === 0) {
+          return res.status(404).json({ error: 'No segments found in this job' });
+        }
+        actualSegments = job.segments;
+        console.log(`✅ Loaded ${actualSegments.length} segments from job ${cleanJobId}`);
+      } catch (error) {
+        console.error('❌ Error fetching job:', error);
+        // Check if it's a validation error
+        if (error.message && error.message.includes('Invalid')) {
+          return res.status(400).json({ 
+            error: error.message
+          });
+        }
+        return res.status(500).json({ 
+          error: 'Error retrieving job information',
+          details: error.message 
+        });
+      }
+    }
+
+    if (!actualSegments || !Array.isArray(actualSegments)) {
+      return res.status(400).json({ error: 'Segments array or jobId is required' });
     }
 
     await ensureDirectories();
@@ -30,7 +79,7 @@ router.post('/generate', verifyToken, async (req, res) => {
     const filename = `${uuidv4()}_${language}.${format}`;
     const outputPath = path.join(subtitlesDir, filename);
 
-    await subtitleGenerator.saveSubtitleFile(segments, format, outputPath);
+    await subtitleGenerator.saveSubtitleFile(actualSegments, format, outputPath);
 
     res.json({
       success: true,
@@ -47,33 +96,182 @@ router.post('/generate', verifyToken, async (req, res) => {
 // Generate multi-language subtitles
 router.post('/generate-multi', verifyToken, async (req, res) => {
   try {
-    const { transcripts } = req.body;
+    const { transcripts, jobId, languages, format = 'srt' } = req.body;
 
-    if (!transcripts || typeof transcripts !== 'object') {
-      return res.status(400).json({ error: 'Transcripts object is required with language keys' });
+    let actualTranscripts = transcripts;
+    let missingLanguages = [];
+    let foundLanguages = [];
+
+    // If jobId and languages are provided, build transcripts object from database
+    if (jobId && languages && !transcripts) {
+      try {
+        const cleanJobId = validateObjectId(jobId, 'jobId');
+        const job = await Job.findById(cleanJobId);
+        
+        if (!job) {
+          return res.status(404).json({ error: 'Job not found' });
+        }
+
+        // Build transcripts object
+        actualTranscripts = {};
+
+        console.log(`📋 Processing languages: ${languages.join(', ')}`);
+        console.log(`📊 Job has ${job.segments?.length || 0} original segments`);
+        console.log(`📊 Job has ${job.translatedTranscript?.length || 0} translated transcript items`);
+        console.log(`📊 Job targetLang: ${job.targetLang || 'N/A'}`);
+
+        // Check schema structure
+        if (job.translatedTranscript && job.translatedTranscript.length > 0) {
+          const firstItem = job.translatedTranscript[0];
+          const isNewSchema = !!firstItem.language;
+          console.log(`📊 Schema type: ${isNewSchema ? 'NEW (with language field)' : 'OLD (flat array)'}`);
+        }
+
+        for (const lang of languages) {
+          if (lang === 'original' || lang === 'en') {
+            // Use original segments for English or 'original'
+            if (!job.segments || job.segments.length === 0) {
+              console.warn(`⚠️ No original segments found for job ${cleanJobId}`);
+              missingLanguages.push({ language: lang, reason: 'No original segments in job' });
+              continue;
+            }
+            actualTranscripts[lang] = job.segments.map(seg => ({
+              start: seg.start,
+              end: seg.end,
+              text: seg.text
+            }));
+            foundLanguages.push(lang);
+            console.log(`✅ Added original segments for language: ${lang} (${actualTranscripts[lang].length} segments)`);
+          } else {
+            // Look for translated transcripts
+            if (!job.translatedTranscript || job.translatedTranscript.length === 0) {
+              console.warn(`⚠️ No translated transcripts found for job ${cleanJobId}`);
+              missingLanguages.push({ language: lang, reason: 'Job has no translations at all' });
+              continue;
+            }
+
+            console.log(`🔍 Looking for translation in language: ${lang}`);
+            
+            // Check if using NEW schema (with language field) or OLD schema (flat array)
+            const firstItem = job.translatedTranscript[0];
+            const isNewSchema = !!firstItem.language;
+
+            if (isNewSchema) {
+              // NEW SCHEMA: Array of { language, segments[], translatedAt }
+              console.log(`📚 Available translations (NEW schema):`, job.translatedTranscript.map(t => t.language));
+              
+              const translation = job.translatedTranscript.find(t => t.language === lang);
+              
+              if (!translation) {
+                console.warn(`⚠️ No translation found for language: ${lang}`);
+                missingLanguages.push({ 
+                  language: lang, 
+                  reason: `Translation not found. Available: [${job.translatedTranscript.map(t => t.language).join(', ')}]`
+                });
+                continue;
+              }
+
+              const segments = translation.segments;
+              
+              if (!Array.isArray(segments) || segments.length === 0) {
+                console.warn(`⚠️ Invalid segments for language: ${lang}`);
+                missingLanguages.push({ language: lang, reason: 'Translation found but segments are invalid or empty' });
+                continue;
+              }
+
+              actualTranscripts[lang] = segments.map(seg => ({
+                start: seg.start,
+                end: seg.end,
+                text: seg.translatedText || seg.text
+              }));
+              foundLanguages.push(lang);
+              console.log(`✅ Added translated segments for language: ${lang} (${actualTranscripts[lang].length} segments)`);
+            } else {
+              // OLD SCHEMA: Flat array with targetLang at Job level
+              console.log(`📚 Using OLD schema with targetLang: ${job.targetLang}`);
+              
+              // Check if requested language matches job.targetLang
+              if (job.targetLang === lang) {
+                actualTranscripts[lang] = job.translatedTranscript.map(seg => ({
+                  start: seg.start,
+                  end: seg.end,
+                  text: seg.translatedText || seg.text
+                }));
+                foundLanguages.push(lang);
+                console.log(`✅ Added translated segments for language: ${lang} from OLD schema (${actualTranscripts[lang].length} segments)`);
+              } else {
+                console.warn(`⚠️ OLD schema only supports targetLang: ${job.targetLang}, requested: ${lang}`);
+                missingLanguages.push({ 
+                  language: lang, 
+                  reason: `OLD schema only has translation for '${job.targetLang}'`
+                });
+              }
+            }
+          }
+        }
+
+        if (Object.keys(actualTranscripts).length === 0) {
+          return res.status(404).json({ 
+            error: 'No valid transcripts found for the specified languages',
+            requestedLanguages: languages,
+            missingLanguages: missingLanguages
+          });
+        }
+
+        console.log(`✅ Built transcripts for ${Object.keys(actualTranscripts).length}/${languages.length} languages from job ${cleanJobId}`);
+        console.log(`✅ Found languages: ${foundLanguages.join(', ')}`);
+        if (missingLanguages.length > 0) {
+          console.log(`⚠️ Missing languages: ${missingLanguages.map(m => `${m.language} (${m.reason})`).join(', ')}`);
+        }
+      } catch (error) {
+        console.error('❌ Error building transcripts from job:', error);
+        // Check if it's a validation error
+        if (error.message && error.message.includes('Invalid')) {
+          return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ 
+          error: 'Error retrieving job transcripts',
+          details: error.message 
+        });
+      }
+    }
+
+    if (!actualTranscripts || typeof actualTranscripts !== 'object') {
+      return res.status(400).json({ 
+        error: 'Transcripts object OR (jobId + languages array) is required' 
+      });
     }
 
     await ensureDirectories();
 
-    const jobId = uuidv4();
-    const jobDir = path.join(subtitlesDir, jobId);
+    const subtitleJobId = uuidv4();
+    const jobDir = path.join(subtitlesDir, subtitleJobId);
     await fs.mkdir(jobDir, { recursive: true });
 
-    const results = await subtitleGenerator.generateMultiLanguageSubtitles(transcripts, jobDir);
+    const results = await subtitleGenerator.generateMultiLanguageSubtitles(actualTranscripts, jobDir);
 
     const response = {};
     for (const [lang, paths] of Object.entries(results)) {
       response[lang] = {
-        srt: `/uploads/subtitles/${jobId}/${lang}.srt`,
-        vtt: `/uploads/subtitles/${jobId}/${lang}.vtt`
+        srt: `/uploads/subtitles/${subtitleJobId}/${lang}.srt`,
+        vtt: `/uploads/subtitles/${subtitleJobId}/${lang}.vtt`
       };
     }
 
-    res.json({
+    const successResponse = {
       success: true,
-      jobId,
+      jobId: subtitleJobId,
       subtitles: response
-    });
+    };
+
+    // Add warning if some languages were not found (only when using jobId)
+    if (jobId && languages && missingLanguages && missingLanguages.length > 0) {
+      successResponse.warning = `Some languages were not found: ${missingLanguages.map(m => m.language).join(', ')}`;
+      successResponse.missingLanguages = missingLanguages;
+      successResponse.foundLanguages = foundLanguages;
+    }
+
+    res.json(successResponse);
   } catch (error) {
     console.error('Error generating multi-language subtitles:', error);
     res.status(500).json({ error: error.message });
@@ -83,16 +281,55 @@ router.post('/generate-multi', verifyToken, async (req, res) => {
 // Burn subtitles
 router.post('/burn', verifyToken, async (req, res) => {
   try {
-    const { videoPath, subtitlePath, options = {} } = req.body;
+    const { videoPath, subtitlePath, jobId, subtitleFile, options = {} } = req.body;
 
-    if (!videoPath || !subtitlePath) {
-      return res.status(400).json({ error: 'videoPath and subtitlePath are required' });
+    let actualVideoPath = videoPath;
+    let actualSubtitlePath = subtitlePath;
+
+    // If jobId is provided, get video path from database
+    if (jobId && !videoPath) {
+      try {
+        const cleanJobId = validateObjectId(jobId, 'jobId');
+        const job = await Job.findById(cleanJobId);
+        
+        if (!job) {
+          return res.status(404).json({ error: 'Job not found' });
+        }
+        
+        if (!job.videoFileName) {
+          return res.status(404).json({ error: 'Video file not associated with this job' });
+        }
+        
+        actualVideoPath = `/uploads/${job.videoFileName}`;
+        console.log(`✅ Using video from job: ${actualVideoPath}`);
+      } catch (error) {
+        console.error('❌ Error fetching job for burn:', error);
+        if (error.message && error.message.includes('Invalid')) {
+          return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ 
+          error: 'Error retrieving job information',
+          details: error.message 
+        });
+      }
+    }
+
+    // Use subtitleFile if provided instead of subtitlePath
+    if (subtitleFile && !subtitlePath) {
+      actualSubtitlePath = subtitleFile.startsWith('/') ? subtitleFile : `/${subtitleFile}`;
+      console.log(`✅ Using subtitle file: ${actualSubtitlePath}`);
+    }
+
+    if (!actualVideoPath || !actualSubtitlePath) {
+      return res.status(400).json({ 
+        error: 'videoPath and subtitlePath (or jobId and subtitleFile) are required' 
+      });
     }
 
     await ensureDirectories();
 
-    const videoFilePath = path.join(uploadsDir, videoPath.replace('/uploads/', ''));
-    const subtitleFilePath = path.join(uploadsDir, subtitlePath.replace('/uploads/', ''));
+    const videoFilePath = path.join(uploadsDir, actualVideoPath.replace('/uploads/', ''));
+    const subtitleFilePath = path.join(uploadsDir, actualSubtitlePath.replace('/uploads/', ''));
 
     const videoExists = await fs.access(videoFilePath).then(() => true).catch(() => false);
     const subtitleExists = await fs.access(subtitleFilePath).then(() => true).catch(() => false);
@@ -227,13 +464,43 @@ router.post('/embed', verifyToken, async (req, res) => {
 // Get video info
 router.get('/video-info', verifyToken, async (req, res) => {
   try {
-    const { videoPath } = req.query;
+    const { videoPath, jobId } = req.query;
 
-    if (!videoPath) {
-      return res.status(400).json({ error: 'videoPath is required' });
+    let actualVideoPath = videoPath;
+
+    // If jobId is provided, get video path from database
+    if (jobId && !videoPath) {
+      try {
+        const cleanJobId = validateObjectId(jobId, 'jobId');
+        const job = await Job.findById(cleanJobId);
+        
+        if (!job) {
+          return res.status(404).json({ error: 'Job not found' });
+        }
+        
+        if (!job.videoFileName) {
+          return res.status(404).json({ error: 'Video file not associated with this job' });
+        }
+        
+        actualVideoPath = `/uploads/${job.videoFileName}`;
+        console.log(`✅ Getting video info for job: ${actualVideoPath}`);
+      } catch (error) {
+        console.error('❌ Error fetching job for video-info:', error);
+        if (error.message && error.message.includes('Invalid')) {
+          return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ 
+          error: 'Error retrieving job information',
+          details: error.message 
+        });
+      }
     }
 
-    const videoFilePath = path.join(uploadsDir, videoPath.replace('/uploads/', ''));
+    if (!actualVideoPath) {
+      return res.status(400).json({ error: 'videoPath or jobId is required' });
+    }
+
+    const videoFilePath = path.join(uploadsDir, actualVideoPath.replace('/uploads/', ''));
     const videoExists = await fs.access(videoFilePath).then(() => true).catch(() => false);
 
     if (!videoExists) {

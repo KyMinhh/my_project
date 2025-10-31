@@ -3,7 +3,7 @@ import {
     Container, Box, Paper, Typography, Button, Stack, CircularProgress, Alert,
     Divider, Checkbox, FormControlLabel, IconButton, Chip,
     Menu, MenuItem, ListItemIcon, Tooltip, Fade, Switch, Dialog,
-    DialogTitle, DialogContent, DialogActions
+    DialogTitle, DialogContent, DialogActions, TextField
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -19,7 +19,7 @@ import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import SubtitlesIcon from '@mui/icons-material/Subtitles';
 
 import { JobDetail, GetJobDetailsResponse, Segment, ExtractedClipInfo, SegmentTime, TranslatedTranscript } from '../types/fileTypes';
-import { getJobDetailsApi, extractMultipleVideoSegmentsApi, translateJobApi } from '../services/fileApi';
+import { getJobDetailsApi, extractMultipleVideoSegmentsApi, extractMultipleVideoSegmentsByJobIdApi, extractSingleVideoSegmentApi, translateJobApi } from '../services/fileApi';
 import { formatDuration } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSelector, { getLanguageName } from '../components/LanguageSelector';
@@ -64,6 +64,11 @@ const TranscriptDetailPage: React.FC = () => {
     const [isLoadingClips, setIsLoadingClips] = useState<boolean>(false);
     const [clipMessage, setClipMessage] = useState<{ type: 'error' | 'warning' | 'success', text: string } | null>(null);
     const [generatedClips, setGeneratedClips] = useState<ExtractedClipInfo[]>([]);
+
+    // Manual time cut states
+    const [manualStartTime, setManualStartTime] = useState<string>('');
+    const [manualEndTime, setManualEndTime] = useState<string>('');
+    const [isManualCutting, setIsManualCutting] = useState<boolean>(false);
 
     // Translation states
     const [showTranslateDialog, setShowTranslateDialog] = useState<boolean>(false);
@@ -155,25 +160,101 @@ const TranscriptDetailPage: React.FC = () => {
         );
     };
     const handleCreateClips = async () => {
-        if (!jobData || !jobData.videoFileName || selectedSegments.length === 0) {
-            setClipMessage({ type: 'error', text: "Chọn ít nhất 1 đoạn!" }); return;
+        if (!jobData || selectedSegments.length === 0) {
+            setClipMessage({ type: 'error', text: "Chọn ít nhất 1 đoạn!" }); 
+            return;
         }
-        setIsLoadingClips(true); setClipMessage(null); setGeneratedClips([]);
-        const segmentsToCut: SegmentTime[] = selectedSegments.map(seg => ({ startTime: seg.start, endTime: seg.end }));
+        
+        setIsLoadingClips(true); 
+        setClipMessage(null); 
+        setGeneratedClips([]);
+        
+        const segmentsToCut: SegmentTime[] = selectedSegments.map(seg => ({ 
+            startTime: seg.start, 
+            endTime: seg.end 
+        }));
+        
         try {
-            const response = await extractMultipleVideoSegmentsApi(jobData.videoFileName, segmentsToCut);
+            let response;
+            
+            // Ưu tiên sử dụng jobId nếu có, fallback về videoFileName
+            if (jobData._id) {
+                console.log(`[UI] Extracting multiple segments using jobId: ${jobData._id}`);
+                response = await extractMultipleVideoSegmentsByJobIdApi(jobData._id, segmentsToCut);
+            } else if (jobData.videoFileName) {
+                console.log(`[UI] Extracting multiple segments using videoFileName: ${jobData.videoFileName}`);
+                response = await extractMultipleVideoSegmentsApi(jobData.videoFileName, segmentsToCut);
+            } else {
+                setClipMessage({ type: 'error', text: "Không tìm thấy thông tin video!" });
+                setIsLoadingClips(false);
+                return;
+            }
+            
             if (response.success && response.data?.clips?.length) {
                 setGeneratedClips(response.data.clips.map(relativePath => ({
-                    name: relativePath.split('/').pop() ?? '', url: `${BACKEND_STATIC_FILES_BASE_URL}${relativePath}`
+                    name: relativePath.split('/').pop() ?? '', 
+                    url: `${BACKEND_STATIC_FILES_BASE_URL}${relativePath}`
                 })));
-                setClipMessage({ type: 'success', text: `Đã tạo ${response.data.clips.length} clip.` });
+                setClipMessage({ 
+                    type: 'success', 
+                    text: `✅ Đã tạo ${response.data.clips.length} clip từ ${selectedSegments.length} đoạn được chọn!` 
+                });
             } else {
                 setClipMessage({ type: 'warning', text: response.message || "Không tạo được clip." });
             }
         } catch (err: any) {
             setClipMessage({ type: 'error', text: err.message || "Lỗi khi tạo clip." });
-        } finally { setIsLoadingClips(false); }
+        } finally { 
+            setIsLoadingClips(false); 
+        }
     };
+
+    // Manual time cut handler
+    const handleManualCutVideo = async () => {
+        if (!jobData || !jobData._id) {
+            setClipMessage({ type: 'error', text: "Không tìm thấy thông tin video!" }); 
+            return;
+        }
+
+        const start = parseFloat(manualStartTime);
+        const end = parseFloat(manualEndTime);
+
+        if (isNaN(start) || isNaN(end)) {
+            setClipMessage({ type: 'error', text: "Vui lòng nhập thời gian hợp lệ (số)!" }); 
+            return;
+        }
+
+        if (start < 0 || end <= start) {
+            setClipMessage({ type: 'error', text: "Thời gian không hợp lệ! End phải lớn hơn Start." }); 
+            return;
+        }
+
+        setIsManualCutting(true); 
+        setClipMessage(null); 
+        setGeneratedClips([]);
+
+        try {
+            const response = await extractSingleVideoSegmentApi(jobData._id, start, end);
+            if (response.success && response.data?.outputPath) {
+                const clipUrl = `${BACKEND_STATIC_FILES_BASE_URL}${response.data.outputPath}`;
+                setGeneratedClips([{
+                    name: response.data.outputPath.split('/').pop() ?? 'clip.mp4',
+                    url: clipUrl
+                }]);
+                setClipMessage({ type: 'success', text: `Đã cắt video từ ${start}s đến ${end}s!` });
+                // Reset input fields
+                setManualStartTime('');
+                setManualEndTime('');
+            } else {
+                setClipMessage({ type: 'warning', text: response.message || "Không tạo được clip." });
+            }
+        } catch (err: any) {
+            setClipMessage({ type: 'error', text: err.message || "Lỗi khi cắt video." });
+        } finally { 
+            setIsManualCutting(false); 
+        }
+    };
+
     const handleOpenDownloadMenuEvent = (event: React.MouseEvent<HTMLElement>) => { setAnchorElDownload(event.currentTarget); };
     const handleCloseDownloadMenu = () => { setAnchorElDownload(null); };
     const handleDownloadTranscript = (format: 'txt' | 'json') => {
@@ -544,21 +625,106 @@ const TranscriptDetailPage: React.FC = () => {
                             {/* Chức năng cut clip và translation toggle */}
                             {jobData.status === 'success' && jobData.segments?.length > 0 && (
                                 <Stack spacing={2}>
-                                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                                        <Button
-                                            variant="contained" color="secondary" size="small"
-                                            startIcon={isLoadingClips ? <CircularProgress size={16} /> : <ContentCutIcon fontSize="small" />}
-                                            onClick={handleCreateClips}
-                                            disabled={selectedSegments.length === 0 || isLoadingClips}
-                                            sx={{ mr: 1 }}
-                                        >
-                                            Cắt video (clip)
-                                        </Button>
-                                        <FormControlLabel
-                                            control={<Checkbox checked={showTimestamps} onChange={(e) => setShowTimestamps(e.target.checked)} size="small" />}
-                                            label="Hiện timestamp"
-                                        />
-                                    </Stack>
+                                    {/* Multiple segments cutting from selected transcript */}
+                                    <Paper 
+                                        elevation={0} 
+                                        sx={{ 
+                                            p: 2, 
+                                            bgcolor: 'background.paper',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            borderRadius: 2
+                                        }}
+                                    >
+                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                                            <ContentCutIcon fontSize="small" color="secondary" />
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
+                                                Cắt nhiều đoạn từ Transcript
+                                            </Typography>
+                                            <Chip 
+                                                label={`${selectedSegments.length} đoạn`} 
+                                                size="small" 
+                                                color={selectedSegments.length > 0 ? "secondary" : "default"}
+                                            />
+                                        </Stack>
+                                        <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                                            <Button
+                                                variant="contained" 
+                                                color="secondary" 
+                                                size="small"
+                                                startIcon={isLoadingClips ? <CircularProgress size={16} /> : <ContentCutIcon fontSize="small" />}
+                                                onClick={handleCreateClips}
+                                                disabled={selectedSegments.length === 0 || isLoadingClips}
+                                                sx={{ mr: 1 }}
+                                            >
+                                                {isLoadingClips ? 'Đang cắt...' : 'Cắt video'}
+                                            </Button>
+                                            <FormControlLabel
+                                                control={<Checkbox checked={showTimestamps} onChange={(e) => setShowTimestamps(e.target.checked)} size="small" />}
+                                                label="Hiện timestamp"
+                                            />
+                                        </Stack>
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                            💡 Tick chọn các đoạn transcript bên dưới, sau đó nhấn "Cắt video" để tạo nhiều clip cùng lúc
+                                        </Typography>
+                                    </Paper>
+
+                                    {/* Manual time cut section */}
+                                    <Paper 
+                                        elevation={0} 
+                                        sx={{ 
+                                            p: 2, 
+                                            bgcolor: 'action.hover',
+                                            border: '1px solid',
+                                            borderColor: 'primary.main',
+                                            borderRadius: 2
+                                        }}
+                                    >
+                                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                                            <ContentCutIcon fontSize="small" color="primary" />
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                                Cắt video theo thời gian chính xác
+                                            </Typography>
+                                        </Stack>
+                                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+                                            <TextField
+                                                label="Start Time (giây)"
+                                                type="number"
+                                                size="small"
+                                                value={manualStartTime}
+                                                onChange={(e) => setManualStartTime(e.target.value)}
+                                                placeholder="0"
+                                                inputProps={{ min: 0, step: 0.1 }}
+                                                sx={{ flexGrow: 1 }}
+                                                helperText="VD: 5.5"
+                                            />
+                                            <TextField
+                                                label="End Time (giây)"
+                                                type="number"
+                                                size="small"
+                                                value={manualEndTime}
+                                                onChange={(e) => setManualEndTime(e.target.value)}
+                                                placeholder="10"
+                                                inputProps={{ min: 0, step: 0.1 }}
+                                                sx={{ flexGrow: 1 }}
+                                                helperText="VD: 15.7"
+                                            />
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                size="medium"
+                                                startIcon={isManualCutting ? <CircularProgress size={16} /> : <ContentCutIcon fontSize="small" />}
+                                                onClick={handleManualCutVideo}
+                                                disabled={isManualCutting || !manualStartTime || !manualEndTime}
+                                                sx={{ minWidth: 120, height: 40 }}
+                                            >
+                                                {isManualCutting ? 'Đang cắt...' : 'Cắt ngay'}
+                                            </Button>
+                                        </Stack>
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                            ✂️ Nhập thời gian bắt đầu và kết thúc (đơn vị: giây, có thể dùng số thập phân) để cắt 1 đoạn video chính xác
+                                        </Typography>
+                                    </Paper>
                                     
                                     {/* Translation toggle */}
                                     {currentTranslation && (
@@ -802,6 +968,7 @@ const TranscriptDetailPage: React.FC = () => {
                         open={showSubtitleExporter}
                         onClose={() => setShowSubtitleExporter(false)}
                         segments={convertToSubtitleSegments(getCurrentSegments())}
+                        jobId={jobData._id}
                         videoPath={jobData.videoUrl || undefined}
                         transcripts={getMultiLanguageTranscripts()}
                     />

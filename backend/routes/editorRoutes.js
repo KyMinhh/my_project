@@ -4,6 +4,7 @@ const fsp = require('fs').promises;
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const { verifyToken } = require('../middleware/verifyToken');
+const Job = require('../schemas/Job');
 
 const router = express.Router();
 
@@ -11,6 +12,22 @@ const projectRootBackend = path.join(__dirname, '..');
 const uploadsDir = path.join(projectRootBackend, 'uploads');
 const outputsDir = path.join(projectRootBackend, 'outputs');
 const tempClipsDir = path.join(outputsDir, 'temp_clips');
+
+// Helper function to validate and clean MongoDB ObjectId
+function validateObjectId(id, fieldName = 'ID') {
+    if (!id) return null;
+    
+    const cleanId = id.toString().trim();
+    
+    // MongoDB ObjectId must be exactly 24 hexadecimal characters
+    if (!/^[a-fA-F0-9]{24}$/.test(cleanId)) {
+        throw new Error(
+            `Invalid ${fieldName} format. Expected 24 hex characters, got: "${cleanId}" (${cleanId.length} chars)`
+        );
+    }
+    
+    return cleanId;
+}
 
 // Helper function for similarity comparison
 function diceCoefficient(str1, str2) {
@@ -124,17 +141,27 @@ async function concatenateSegments(segmentFilePaths, finalOutputPath) {
 
 // Find timestamp
 router.post('/find-timestamp', verifyToken, async (req, res) => {
-    const { text, videoPath } = req.body;
+    const { text, searchText, jobId, videoPath } = req.body;
+    
+    // Accept both 'text' and 'searchText' for backward compatibility
+    const searchQuery = text || searchText;
 
-    if (!text || text.trim().length === 0) {
+    if (!searchQuery || searchQuery.trim().length === 0) {
         return res.status(400).json({ success: false, message: "Search text cannot be empty." });
     }
-    if (!videoPath) {
-        return res.status(400).json({ success: false, message: "videoPath is required." });
+    
+    // Use jobId if provided, otherwise fall back to videoPath
+    let transcriptFilePath;
+    
+    if (jobId) {
+        transcriptFilePath = path.join(projectRootBackend, "outputs", `transcript_raw_${jobId}.json`);
+    } else if (videoPath) {
+        transcriptFilePath = path.join(projectRootBackend, "outputs", "transcription.json");
+    } else {
+        return res.status(400).json({ success: false, message: "jobId or videoPath is required." });
     }
 
-    const normalizedSearchText = text.toLowerCase().trim();
-    const transcriptFilePath = path.join(projectRootBackend, "outputs", "transcription.json");
+    const normalizedSearchText = searchQuery.toLowerCase().trim();
 
     try {
         const fileExists = await fs.access(transcriptFilePath).then(() => true).catch(() => false);
@@ -213,27 +240,51 @@ router.post('/find-timestamp', verifyToken, async (req, res) => {
 
 // Extract single video segment
 router.post('/extract-video', verifyToken, async (req, res) => {
-    const { startTime, endTime, videoPath } = req.body;
+    const { startTime, endTime, videoPath, jobId } = req.body;
 
-    if (startTime === undefined || endTime === undefined || !videoPath) {
-        return res.status(400).json({ success: false, message: "Missing startTime, endTime, or videoPath." });
+    if (startTime === undefined || endTime === undefined) {
+        return res.status(400).json({ success: false, message: "Missing startTime or endTime." });
+    }
+
+    let actualVideoPath = videoPath;
+
+    // If jobId provided, get video path from database
+    if (jobId && !videoPath) {
+        try {
+            const cleanJobId = validateObjectId(jobId, 'jobId');
+            const job = await Job.findById(cleanJobId);
+            if (!job) {
+                return res.status(404).json({ success: false, message: "Job not found." });
+            }
+            if (!job.videoFileName) {
+                return res.status(404).json({ success: false, message: "Video file not associated with this job." });
+            }
+            actualVideoPath = path.join(projectRootBackend, 'uploads', job.videoFileName);
+        } catch (error) {
+            console.error(`❌ Error fetching job:`, error);
+            return res.status(500).json({ success: false, message: "Error retrieving job information." });
+        }
+    }
+
+    if (!actualVideoPath) {
+        return res.status(400).json({ success: false, message: "videoPath or jobId is required." });
     }
 
     try {
-        await fsp.access(videoPath);
+        await fsp.access(actualVideoPath);
     } catch (error) {
-        console.error(`❌ Video file not found at path: ${videoPath}`, error);
+        console.error(`❌ Video file not found at path: ${actualVideoPath}`, error);
         return res.status(404).json({ success: false, message: "Video file not found on server!" });
     }
 
     const outputFileName = `extracted-${Date.now()}.mp4`;
     const outputVideoPath = path.join(projectRootBackend, 'outputs', outputFileName);
 
-    console.log(`🎬 Extracting video segment from ${startTime}s to ${endTime}s for ${videoPath}`);
+    console.log(`🎬 Extracting video segment from ${startTime}s to ${endTime}s for ${actualVideoPath}`);
 
     new Promise((resolve, reject) => {
         ffmpeg()
-            .input(videoPath)
+            .input(actualVideoPath)
             .inputOptions([`-ss ${startTime}`])
             .outputOptions([
                 `-to ${endTime}`,
@@ -255,7 +306,14 @@ router.post('/extract-video', verifyToken, async (req, res) => {
             .run();
     })
         .then(videoUrl => {
-            res.status(200).json({ success: true, data: { videoUrl: videoUrl }, message: "Video segment extracted successfully" });
+            res.status(200).json({ 
+                success: true, 
+                data: { 
+                    videoUrl: videoUrl,
+                    outputPath: videoUrl // Add outputPath for frontend compatibility
+                }, 
+                message: "Video segment extracted successfully" 
+            });
         })
         .catch(err => {
             res.status(500).json({ success: false, message: "Error extracting video segment.", details: err.message });
@@ -264,18 +322,41 @@ router.post('/extract-video', verifyToken, async (req, res) => {
 
 // Extract multiple video segments
 router.post('/extract-multiple-segments', verifyToken, async (req, res, next) => {
-    const { videoFileName, segments } = req.body;
+    const { videoFileName, jobId, segments } = req.body;
 
-    if (!videoFileName || typeof videoFileName !== 'string' || videoFileName.trim() === '') {
-        return res.status(400).json({ success: false, status: 400, message: "videoFileName is required." });
+    // Support both videoFileName and jobId
+    let actualVideoFileName = videoFileName;
+    let originalVideoPath;
+    let originalNameWithoutExt;
+
+    // If jobId is provided, fetch video from database
+    if (jobId && !videoFileName) {
+        try {
+            const cleanJobId = validateObjectId(jobId, 'jobId');
+            const job = await Job.findById(cleanJobId);
+            if (!job) {
+                return res.status(404).json({ success: false, status: 404, message: "Job not found." });
+            }
+            if (!job.videoFileName) {
+                return res.status(404).json({ success: false, status: 404, message: "Video file not associated with this job." });
+            }
+            actualVideoFileName = job.videoFileName;
+        } catch (error) {
+            console.error(`❌ Error fetching job:`, error);
+            return res.status(500).json({ success: false, status: 500, message: "Error retrieving job information." });
+        }
+    }
+
+    if (!actualVideoFileName || typeof actualVideoFileName !== 'string' || actualVideoFileName.trim() === '') {
+        return res.status(400).json({ success: false, status: 400, message: "videoFileName or jobId is required." });
     }
     if (!Array.isArray(segments) || segments.length === 0) {
         return res.status(400).json({ success: false, status: 400, message: "Segments must be a non-empty array." });
     }
 
-    const cleanVideoFileName = path.basename(videoFileName);
-    const originalVideoPath = path.join(uploadsDir, cleanVideoFileName);
-    const originalNameWithoutExt = path.parse(cleanVideoFileName).name;
+    const cleanVideoFileName = path.basename(actualVideoFileName);
+    originalVideoPath = path.join(uploadsDir, cleanVideoFileName);
+    originalNameWithoutExt = path.parse(cleanVideoFileName).name;
 
     try {
         await fs.access(originalVideoPath);

@@ -173,9 +173,20 @@ router.post("/forgot-password", async (req, res) => {
 
 		const resetURL = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
 
-		await sendPasswordResetEmail(user.email, resetURL);
+		// Gửi email (không throw error nếu thất bại)
+		try {
+			await sendPasswordResetEmail(user.email, resetURL);
+		} catch (emailError) {
+			console.error('❌ Email sending failed, but continuing...', emailError.message);
+			// Trong dev mode, URL đã được log ra console rồi
+		}
 
-		res.status(200).json({ success: true, message: "If an account with that email exists, a password reset link has been sent." });
+		res.status(200).json({ 
+			success: true, 
+			message: "Password reset link has been sent. Check your email or console.",
+			// Chỉ trả về resetURL trong development
+			...(process.env.NODE_ENV === 'development' && { resetURL })
+		});
 	} catch (error) {
 		console.error("Error in forgotPassword: ", error);
 		res.status(500).json({ success: false, message: "Server error during password reset request." });

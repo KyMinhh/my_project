@@ -316,12 +316,15 @@ router.post('/transcribe-from-youtube', async (req, res) => {
     const io = req.app.get('socketio');
 
     try {
-        const { youtubeUrl, languageCode: languageCodeFromClient, enableSpeakerDiarization = false, targetLang = null } = req.body;
+        const { url: youtubeUrl, language: languageCodeFromClient, model, enableSpeakerDiarization = false, targetLang = null } = req.body;
 
-        if (!youtubeUrl || !(youtubeUrl.includes('youtube.com/') || youtubeUrl.includes('youtu.be/'))) {
-            if (!(youtubeUrl.includes('youtube.com') || youtubeUrl.includes('youtu.be'))) {
-                return res.status(400).json({ success: false, message: "Valid YouTube URL is required." });
-            }
+        // Validate YouTube URL
+        if (!youtubeUrl) {
+            return res.status(400).json({ success: false, message: "YouTube URL is required." });
+        }
+
+        if (!(youtubeUrl.includes('youtube.com/') || youtubeUrl.includes('youtu.be/'))) {
+            return res.status(400).json({ success: false, message: "Valid YouTube URL is required." });
         }
         emitJobStatusUpdate(io, `temp-yt-${Date.now()}`, 'processing', `Received YouTube URL: ${youtubeUrl}. Starting download...`);
 
@@ -439,9 +442,14 @@ router.post('/transcribe-from-tiktok', async (req, res) => {
     const io = req.app.get('socketio');
 
     try {
-        const { tiktokUrl, languageCode: languageCodeFromClient = 'auto-detect', enableSpeakerDiarization = false, targetLang = null } = req.body;
+        const { url: tiktokUrl, language: languageCodeFromClient = 'auto-detect', model, enableSpeakerDiarization = false, targetLang = null } = req.body;
 
-        if (!tiktokUrl || !(tiktokUrl.includes('tiktok.com/t/') || tiktokUrl.includes('tiktok.com/@'))) {
+        // Validate TikTok URL
+        if (!tiktokUrl) {
+            return res.status(400).json({ success: false, message: "TikTok URL is required." });
+        }
+
+        if (!(tiktokUrl.includes('tiktok.com/'))) {
             return res.status(400).json({ success: false, message: "Invalid TikTok URL format provided." });
         }
         

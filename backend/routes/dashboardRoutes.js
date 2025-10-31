@@ -4,14 +4,8 @@ const { verifyToken } = require('../middleware/verifyToken');
 const { catchAsync, AppError } = require('../middleware/errorHandler');
 const Job = require('../schemas/Job');
 
-// Get dashboard stats for authenticated user
-router.get('/dashboard/stats', verifyToken, catchAsync(async (req, res, next) => {
-    const userId = req.user.id;
-    
-    if (!userId) {
-        return next(new AppError('User ID not found', 400));
-    }
-    
+// Helper function to get stats
+async function getDashboardStats(userId) {
     // Get all jobs for the user
     const allJobs = await Job.find({ userId }).sort({ createdAt: -1 });
     
@@ -29,7 +23,7 @@ router.get('/dashboard/stats', verifyToken, catchAsync(async (req, res, next) =>
     // Calculate completion rate
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
     
-    const stats = {
+    return {
         totalJobs,
         completedJobs,
         pendingJobs,
@@ -37,9 +31,33 @@ router.get('/dashboard/stats', verifyToken, catchAsync(async (req, res, next) =>
         totalVideoMinutes,
         completionRate: Math.round(completionRate * 10) / 10 // Round to 1 decimal
     };
+}
+
+// Get dashboard stats for authenticated user
+router.get('/dashboard/stats', verifyToken, catchAsync(async (req, res, next) => {
+    const userId = req.user.id;
     
+    if (!userId) {
+        return next(new AppError('User ID not found', 400));
+    }
+    
+    const stats = await getDashboardStats(userId);
     res.json(stats);
 }));
+
+// DEV ONLY: Get stats by userId (for testing without auth)
+if (process.env.NODE_ENV === 'development') {
+    router.post('/dashboard/stats', catchAsync(async (req, res, next) => {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return next(new AppError('User ID is required', 400));
+        }
+        
+        const stats = await getDashboardStats(userId);
+        res.json(stats);
+    }));
+}
 
 // Get recent jobs for authenticated user
 router.get('/dashboard/recent-jobs', verifyToken, catchAsync(async (req, res, next) => {
