@@ -17,6 +17,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const subtitleRoutes = require('./routes/subtitleRoutes');
 const transcriptionRoutes = require('./routes/transcriptionRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const summaryRoutes = require('./routes/summaryRoutes');
 const { verifyToken } = require('./middleware/verifyToken');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
@@ -62,6 +63,7 @@ app.use("/api/v1/profile", profileRoutes);
 app.use('/api', dashboardRoutes);
 app.use('/api/subtitles', subtitleRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/summary', summaryRoutes);
 
 
 app.get("/", (req, res) => {

@@ -7,11 +7,26 @@
     "start_server": "node app.js",
     "dev_server": "nodemon app.js",
     "start": "node bin/www",
-    "dev": "nodemon --ignore node_modules --ignore uploads --ignore outputs --ignore backups --ignore keys bin/www"
+    "dev": "nodemon --ignore node_modules --ignore uploads --ignore outputs --ignore backups --ignore keys bin/www",
+    "test-gemini": "node test-gemini.js",
+    "test-gemini-rest": "node test-gemini-rest.js",
+    "list-gemini-models": "node list-gemini-models.js",
+    "test-summary": "node test-summary-service.js",
+    "find-model": "node find-working-model.js"
   },
   "nodemonConfig": {
-    "watch": [".", "bin"],
-    "ignore": ["node_modules", "uploads", "outputs", "backups", "keys", "*.log"],
+    "watch": [
+      ".",
+      "bin"
+    ],
+    "ignore": [
+      "node_modules",
+      "uploads",
+      "outputs",
+      "backups",
+      "keys",
+      "*.log"
+    ],
     "ext": "js,json",
     "delay": 1000
   },
@@ -19,6 +34,7 @@
     "@google-cloud/speech": "^6.7.1",
     "@google-cloud/storage": "^7.15.2",
     "@google-cloud/translate": "^9.2.0",
+    "@google/generative-ai": "^0.24.1",
     "archiver": "^6.0.2",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",

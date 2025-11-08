@@ -28,6 +28,7 @@ import { SubtitleSegment } from '../services/subtitleApi';
 import SearchBar, { SearchOptions } from '../components/SearchBar';
 import HighlightedText from '../components/HighlightedText';
 import SearchOptionsComponent from '../components/SearchOptions';
+import SummaryPanel from '../components/SummaryPanel';
 
 // --- Cấu hình lại format timestamp
 const formatTimestamp = (timestamp: string | undefined): string => {
@@ -899,6 +900,15 @@ const TranscriptDetailPage: React.FC = () => {
                         </Box>
                     </Paper>
                 )}
+
+                {/* AI Summary Panel */}
+                {!isLoading && !error && jobData && jobData.status === 'success' && jobData.transcriptionResult && (
+                    <SummaryPanel 
+                        jobId={jobData._id} 
+                        transcriptLength={jobData.transcriptionResult.length}
+                    />
+                )}
+
                 {!isLoading && !error && !jobData && (<Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>Không tìm thấy job này.</Typography>)}
                 
                 {/* Translation Dialog */}

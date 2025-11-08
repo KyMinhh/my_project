@@ -40,6 +40,47 @@ const jobSchema = new mongoose.Schema({
         enum: ['upload', 'youtube', 'tiktok'],
         default: 'upload'
     },
+    
+    // AI Summary fields
+    summaries: {
+        quick: {
+            text: { type: String },
+            generatedAt: { type: Date },
+            model: { type: String },
+            provider: { type: String }
+        },
+        detailed: {
+            text: { type: String },
+            generatedAt: { type: Date },
+            model: { type: String },
+            provider: { type: String }
+        },
+        bullets: {
+            text: { type: String },
+            generatedAt: { type: Date },
+            model: { type: String },
+            provider: { type: String }
+        },
+        chapters: {
+            text: { type: String },
+            generatedAt: { type: Date },
+            model: { type: String },
+            provider: { type: String }
+        },
+        action_items: {
+            text: { type: String },
+            generatedAt: { type: Date },
+            model: { type: String },
+            provider: { type: String }
+        },
+        keywords: {
+            text: { type: String },
+            generatedAt: { type: Date },
+            model: { type: String },
+            provider: { type: String }
+        }
+    },
+    
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null }
 }, {
