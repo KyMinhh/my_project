@@ -14,6 +14,8 @@ import AdminPanel from './pages/AdminPanel';
 import AdminRoute from './components/AdminRoute';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -40,6 +42,8 @@ function App() {
               <Route path="/collaborate/:transcriptId" element={<CollaborativeTranscriptPage />} />
               <Route path="/subtitles" element={<SubtitlePage />} />
               <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
             </Routes>
           </Router>
         </AuthProvider>

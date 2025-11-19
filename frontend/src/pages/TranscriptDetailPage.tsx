@@ -29,6 +29,9 @@ import SearchBar, { SearchOptions } from '../components/SearchBar';
 import HighlightedText from '../components/HighlightedText';
 import SearchOptionsComponent from '../components/SearchOptions';
 import SummaryPanel from '../components/SummaryPanel';
+import GenerateClipsButton from '../components/GenerateClipsButton';
+import ClipGallery from '../components/ClipGallery';
+import TikTokConnect from '../components/TikTokConnect';
 
 // --- Cấu hình lại format timestamp
 const formatTimestamp = (timestamp: string | undefined): string => {
@@ -102,6 +105,10 @@ const TranscriptDetailPage: React.FC = () => {
     });
     const [anchorElSearchOptions, setAnchorElSearchOptions] = useState<null | HTMLElement>(null);
     const openSearchOptions = Boolean(anchorElSearchOptions);
+
+    // Smart Clips states
+    const [showClipsSection, setShowClipsSection] = useState<boolean>(false);
+    const [clipsGenerated, setClipsGenerated] = useState<boolean>(false);
 
     // --- Authentication check ---
     useEffect(() => {
@@ -907,6 +914,74 @@ const TranscriptDetailPage: React.FC = () => {
                         jobId={jobData._id} 
                         transcriptLength={jobData.transcriptionResult.length}
                     />
+                )}
+
+                {/* TikTok Integration */}
+                {!isLoading && !error && jobData && jobData.status === 'success' && (
+                    <Box sx={{ mt: 3 }}>
+                        <TikTokConnect />
+                    </Box>
+                )}
+
+                {/* Smart Clips Generator Section */}
+                {!isLoading && !error && jobData && jobData.status === 'success' && jobData.transcriptionResult && jobData.segments && jobData.segments.length > 0 && (
+                    <Paper elevation={2} sx={{ p: 3, mt: 3, borderRadius: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                            <Box>
+                                <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                    🎬 Smart Clips Generator
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    AI tự động tạo clips viral-ready từ video của bạn
+                                </Typography>
+                            </Box>
+                            <GenerateClipsButton 
+                                jobId={jobData._id}
+                                onSuccess={(count) => {
+                                    setClipsGenerated(true);
+                                    setShowClipsSection(true);
+                                    setClipMessage({ 
+                                        type: 'success', 
+                                        text: `✅ Đã tạo ${count} smart clips! Đang xử lý video...` 
+                                    });
+                                }}
+                                disabled={!jobData.videoFileName}
+                            />
+                        </Box>
+
+                        {/* Show clips gallery if generated or already exists */}
+                        {(showClipsSection || clipsGenerated) && (
+                            <Box sx={{ mt: 3 }}>
+                                <Divider sx={{ mb: 3 }} />
+                                <ClipGallery 
+                                    jobId={jobData._id}
+                                    onRefresh={() => {
+                                        // Optionally refresh parent data
+                                    }}
+                                />
+                            </Box>
+                        )}
+
+                        {/* Info when no clips yet */}
+                        {!showClipsSection && !clipsGenerated && (
+                            <Alert severity="info" sx={{ mt: 2 }}>
+                                <Typography variant="body2" fontWeight={500} gutterBottom>
+                                    Chưa có smart clips nào được tạo
+                                </Typography>
+                                <Typography variant="caption">
+                                    Click "Generate Smart Clips" để AI phân tích và tạo các clip viral từ video này. 
+                                    Các clip sẽ được tối ưu cho TikTok, YouTube Shorts, và Instagram Reels với:
+                                </Typography>
+                                <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
+                                    <li><Typography variant="caption">🤖 AI viral moment detection</Typography></li>
+                                    <li><Typography variant="caption">📊 Viral score cho mỗi clip</Typography></li>
+                                    <li><Typography variant="caption">📱 Auto crop 9:16 vertical</Typography></li>
+                                    <li><Typography variant="caption">🌍 Multi-language subtitles</Typography></li>
+                                    <li><Typography variant="caption">#️⃣ Auto-generated hashtags</Typography></li>
+                                </ul>
+                            </Alert>
+                        )}
+                    </Paper>
                 )}
 
                 {!isLoading && !error && !jobData && (<Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>Không tìm thấy job này.</Typography>)}
