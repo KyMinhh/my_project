@@ -1,15 +1,15 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api/clips`,
   withCredentials: true
 });
 
 // Add auth token to requests
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -104,7 +104,7 @@ export const generateSmartClips = async (
 ): Promise<GenerateClipsResponse> => {
   try {
     const response = await apiClient.post<GenerateClipsResponse>(
-      `/clips/generate/${jobId}`,
+      `/generate/${jobId}`,
       options
     );
     return response.data;
@@ -119,7 +119,7 @@ export const generateSmartClips = async (
  */
 export const getClipsByJob = async (jobId: string): Promise<GetClipsResponse> => {
   try {
-    const response = await apiClient.get<GetClipsResponse>(`/clips/${jobId}`);
+    const response = await apiClient.get<GetClipsResponse>(`/${jobId}`);
     return response.data;
   } catch (error: any) {
     console.error('Get clips error:', error);
@@ -132,7 +132,7 @@ export const getClipsByJob = async (jobId: string): Promise<GetClipsResponse> =>
  */
 export const getClipById = async (clipId: string): Promise<ClipResponse> => {
   try {
-    const response = await apiClient.get<ClipResponse>(`/clips/single/${clipId}`);
+    const response = await apiClient.get<ClipResponse>(`/single/${clipId}`);
     return response.data;
   } catch (error: any) {
     console.error('Get clip error:', error);
@@ -148,7 +148,7 @@ export const updateClip = async (
   updates: Partial<Pick<Clip, 'title' | 'description' | 'hashtags' | 'suggestedPlatforms' | 'isPublished'>>
 ): Promise<ClipResponse> => {
   try {
-    const response = await apiClient.put<ClipResponse>(`/clips/${clipId}`, updates);
+    const response = await apiClient.put<ClipResponse>(`/${clipId}`, updates);
     return response.data;
   } catch (error: any) {
     console.error('Update clip error:', error);
@@ -161,7 +161,7 @@ export const updateClip = async (
  */
 export const deleteClip = async (clipId: string): Promise<{ success: boolean; message: string }> => {
   try {
-    const response = await apiClient.delete(`/clips/${clipId}`);
+    const response = await apiClient.delete(`/${clipId}`);
     return response.data;
   } catch (error: any) {
     console.error('Delete clip error:', error);
@@ -177,7 +177,7 @@ export const regenerateClipVideo = async (
   languages: string[] = ['vi', 'en']
 ): Promise<{ success: boolean; message: string; clipId: string }> => {
   try {
-    const response = await apiClient.post(`/clips/${clipId}/regenerate-video`, { languages });
+    const response = await apiClient.post(`/${clipId}/regenerate-video`, { languages });
     return response.data;
   } catch (error: any) {
     console.error('Regenerate clip error:', error);
@@ -189,19 +189,21 @@ export const regenerateClipVideo = async (
  * Get download URL for clip
  */
 export const getClipDownloadUrl = (clipId: string): string => {
-  return `${API_BASE_URL}/clips/download/${clipId}`;
+  return `${API_BASE_URL}/download/${clipId}`;
 };
 
 /**
  * Get video URL for clip
  */
 export const getClipVideoUrl = (clipId: string): string => {
-  return `${API_BASE_URL.replace('/api', '')}/clips/${clipId}/clip.mp4`;
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  return `${baseUrl}/clips/${clipId}/clip.mp4`;
 };
 
 /**
  * Get thumbnail URL for clip
  */
 export const getClipThumbnailUrl = (clipId: string): string => {
-  return `${API_BASE_URL.replace('/api', '')}/clips/${clipId}/thumbnail.jpg`;
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+  return `${baseUrl}/clips/${clipId}/thumbnail.jpg`;
 };

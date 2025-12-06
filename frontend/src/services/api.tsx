@@ -1,6 +1,7 @@
-
-const baseUrl = "http://127.0.0.1:5001/api";
 import { RecentFile } from '../types/fileTypes';
+
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = `${baseUrl}/api`;
 
 
 interface TranscribeInitiateResponse {
@@ -33,7 +34,7 @@ export const transcribeVideoFileApi = async (
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${baseUrl}/transcribe`, {
+        const response = await fetch(`${API_BASE_URL}/transcribe`, {
             method: "POST",
             body: formData,
             headers
@@ -68,7 +69,7 @@ export const transcribeFromYoutube = async (youtubeUrl: string): Promise<any> =>
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${baseUrl}/transcribe-from-youtube`, {
+        const response = await fetch(`${API_BASE_URL}/transcribe-from-youtube`, {
             method: "POST",
             headers,
             body: JSON.stringify({ youtubeUrl }),
@@ -93,7 +94,7 @@ export const findTimestamp = async (text: string, videoPath: string): Promise<an
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${baseUrl}/find-timestamp`, {
+        const response = await fetch(`${API_BASE_URL}/find-timestamp`, {
             method: "POST",
             headers,
             body: JSON.stringify({ text, videoPath }),
@@ -118,7 +119,7 @@ export const extractVideoSegment = async (startTime: number, endTime: number, vi
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${baseUrl}/extract-video`, {
+        const response = await fetch(`${API_BASE_URL}/extract-video`, {
             method: "POST",
             headers,
             body: JSON.stringify({ startTime, endTime, videoPath }),

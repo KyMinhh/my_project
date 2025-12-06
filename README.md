@@ -6,6 +6,13 @@ A comprehensive web application for video transcription, editing, and collaborat
 
 - **Video Upload & Processing**: Support for multiple video formats with secure cloud storage
 - **AI-Powered Transcription**: Integration with Google Cloud Speech-to-Text and other AI services
+- **🤖 Smart Viral Clips Generation**: AI analyzes videos to detect viral-worthy moments
+  - Automatic viral score calculation (0-100)
+  - Emotional peak detection (funny, shocking, educational, etc.)
+  - Hook strength analysis for first 3 seconds
+  - Platform-specific optimization (TikTok, YouTube Shorts, Instagram Reels)
+  - Auto-generated hashtags and titles
+  - Multi-language subtitle support
 - **Real-time Collaboration**: Multi-user editing with live presence indicators
 - **Transcript Editor**: Rich text editing with timestamp synchronization
 - **Multi-language Support**: Internationalization with English and Vietnamese
@@ -124,6 +131,9 @@ my_project/
 │   ├── models/         # MongoDB models
 │   ├── routes/         # API routes
 │   ├── services/       # Business logic services
+│   │   ├── viralAnalysisService.js  # AI viral moment detection
+│   │   ├── subtitleGenerator.js     # Multi-language subtitles
+│   │   └── youtubeService.js        # YouTube integration
 │   ├── middleware/     # Custom middleware
 │   ├── sockets/        # WebSocket handlers
 │   └── uploads/        # File uploads
@@ -135,7 +145,55 @@ my_project/
 │   │   └── utils/      # Utility functions
 │   └── public/         # Static assets
 └── docs/              # Documentation
+    ├── AI_VIRAL_DETECTION.md      # Technical deep dive into AI analysis
+    └── VIRAL_CLIPS_USER_GUIDE.md  # User guide for creating viral content
 ```
+
+## Documentation
+
+### 📚 Available Guides
+
+1. **[AI Viral Detection - Technical Documentation](./docs/AI_VIRAL_DETECTION.md)**
+   - Deep dive into how AI detects viral moments
+   - Scoring algorithms and criteria
+   - Prompt engineering techniques
+   - Performance metrics and benchmarks
+
+2. **[Viral Clips User Guide](./docs/VIRAL_CLIPS_USER_GUIDE.md)**
+   - Quick start guide for content creators
+   - How to interpret viral scores
+   - Platform-specific optimization tips
+   - Case studies and best practices
+
+3. **[API Documentation](./docs/API.md)** *(Coming soon)*
+   - RESTful API endpoints
+   - Request/response formats
+   - Authentication flow
+
+### 🎯 Key AI Features Explained
+
+#### Viral Score Calculation
+```javascript
+Viral Score (0-100) = 
+  Hook Strength (30%) +      // First 3 seconds impact
+  Emotional Impact (25%) +   // Emotion intensity
+  Story Completeness (20%) + // Narrative structure
+  Viral Elements (15%) +     // Humor, shock, relatability
+  Quotability (10%)          // Memorable quotes
+```
+
+#### Supported Emotions
+- 😂 Funny → Best for TikTok, Instagram
+- 🤯 Shocking → Best for TikTok, Twitter
+- 💡 Educational → Best for YouTube Shorts
+- ❤️ Heartwarming → Best for Instagram, Facebook
+- 🔥 Controversial → Best for Twitter, TikTok
+- 💪 Motivational → Best for Instagram, LinkedIn
+
+#### Platform Optimization
+- **TikTok**: 15-45s, strong hook, fast-paced
+- **YouTube Shorts**: 30-60s, educational, tutorial-style
+- **Instagram Reels**: 15-90s, aesthetic, high-quality
 
 ## License
 
@@ -149,13 +207,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Roadmap
 
-- [ ] Advanced AI transcription models
+- [x] Advanced AI transcription models
+- [x] **AI-powered viral moment detection**
+- [x] **Multi-language subtitle generation**
+- [x] **Auto crop to vertical 9:16 format**
+- [x] **Hashtag generation with AI**
 - [ ] Mobile app development
 - [ ] Integration with more social platforms
-- [ ] Real-time video editing
+- [ ] Real-time video editing with effects
 - [ ] Team collaboration features
 - [ ] Advanced analytics dashboard
+- [ ] A/B testing for viral content
+- [ ] Trend analysis and recommendation system
 
 ---
 
-*Built with ❤️ for efficient video transcription and collaboration*
+*Built with ❤️ for efficient video transcription and viral content creation*

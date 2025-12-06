@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -67,7 +67,7 @@ export interface UpdateProfileData {
 // Get current user profile
 export const getMyProfile = async (): Promise<UserProfile> => {
   try {
-    const response = await apiClient.get('/v1/profile/me');
+    const response = await apiClient.get('/api/v1/profile/me');
     return response.data.user;
   } catch (error: any) {
     console.error('Error fetching profile:', error);
@@ -78,7 +78,7 @@ export const getMyProfile = async (): Promise<UserProfile> => {
 // Update user profile
 export const updateMyProfile = async (data: UpdateProfileData): Promise<UserProfile> => {
   try {
-    const response = await apiClient.put('/v1/profile/me', data);
+    const response = await apiClient.put('/api/v1/profile/me', data);
     return response.data.user;
   } catch (error: any) {
     console.error('Error updating profile:', error);
@@ -92,7 +92,7 @@ export const uploadAvatar = async (file: File): Promise<UserProfile> => {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    const response = await apiClient.post('/v1/profile/avatar', formData, {
+    const response = await apiClient.post('/api/v1/profile/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -108,7 +108,7 @@ export const uploadAvatar = async (file: File): Promise<UserProfile> => {
 // Get user profile by ID (public)
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   try {
-    const response = await apiClient.get(`/v1/profile/${userId}`);
+    const response = await apiClient.get(`/api/v1/profile/${userId}`);
     return response.data.user;
   } catch (error: any) {
     console.error('Error fetching user profile:', error);

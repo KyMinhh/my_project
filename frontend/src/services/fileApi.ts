@@ -17,10 +17,16 @@ import {
 
 
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+console.log('🔧 FILE API Configuration:', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    API_BASE_URL,
+    finalBaseURL: `${API_BASE_URL}/api`
+});
 
 const apiClient = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: `${API_BASE_URL}/api`,
     withCredentials: true // Để gửi cookies
 });
 
@@ -74,7 +80,7 @@ export const getRecentFilesApi = async (page: number = 1, limit: number = 10, se
         if (search && search.trim()) {
             params.search = search.trim();
         }
-        const response = await apiClient.get<GetFilesResponse>('/files', { params });
+        const response = await apiClient.get<GetFilesResponse>('/api/files', { params });
         console.log("[API] Received files response:", response.data);
         return response.data;
     } catch (error: any) {

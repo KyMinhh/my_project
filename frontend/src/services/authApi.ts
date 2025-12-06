@@ -2,8 +2,14 @@
 import axios from 'axios';
 
 // API_BASE_URL nên trỏ đến prefix của user routes, ví dụ: http://localhost:5001/api/v1/users
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '/api/v1/users');
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = `${baseUrl}/api/v1/users`;
 
+console.log('🔧 AUTH API Configuration:', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    baseUrl,
+    API_BASE_URL
+});
 
 export const authApiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -51,12 +57,14 @@ export const signupUserApi = async (payload: SignupPayload): Promise<AuthRespons
 
 export const loginUserApi = async (payload: LoginPayload): Promise<AuthResponse> => {
     try {
+        console.log('🔑 Calling login API:', authApiClient.defaults.baseURL + '/login');
         const response = await authApiClient.post<AuthResponse>('/login', payload);
         if (response.data.token && response.data.user) {
             // AuthContext sẽ gọi hàm login của nó, hàm này sẽ lưu token và user
         }
         return response.data;
     } catch (error: any) {
+        console.error('❌ Login API Error:', error.response?.config?.url);
         return error.response?.data || { success: false, message: error.message || 'An unknown error occurred during login.' };
     }
 };
