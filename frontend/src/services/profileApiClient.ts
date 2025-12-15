@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Tạo separate API client cho profile service  
-const PROFILE_API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '/api/v1/profile');
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const PROFILE_API_BASE_URL = `${baseUrl}/api/v1/profile`;
 
 export const profileApiClient = axios.create({
     baseURL: PROFILE_API_BASE_URL,

@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api/subtitles`,
   withCredentials: true,
 });
 
@@ -129,41 +129,41 @@ export interface BurnSubtitlesDirectResponse {
 
 export const subtitleApi = {
   async generateSubtitles(data: GenerateSubtitlesRequest): Promise<GenerateSubtitlesResponse> {
-    const response = await apiClient.post('/subtitles/generate', data);
+    const response = await apiClient.post('/generate', data);
     return response.data;
   },
 
   async generateMultiLanguageSubtitles(
     transcripts: MultiLanguageTranscripts
   ): Promise<GenerateMultiLanguageResponse> {
-    const response = await apiClient.post('/subtitles/generate-multi', { transcripts });
+    const response = await apiClient.post('/generate-multi', { transcripts });
     return response.data;
   },
 
   async burnSubtitles(data: BurnSubtitlesRequest): Promise<BurnSubtitlesResponse> {
-    const response = await apiClient.post('/subtitles/burn', data);
+    const response = await apiClient.post('/burn', data);
     return response.data;
   },
 
   async burnSubtitlesDirect(data: BurnSubtitlesDirectRequest): Promise<BurnSubtitlesDirectResponse> {
-    const response = await apiClient.post('/subtitles/burn-direct', data);
+    const response = await apiClient.post('/burn-direct', data);
     return response.data;
   },
 
   async embedSubtitles(data: EmbedSubtitlesRequest): Promise<EmbedSubtitlesResponse> {
-    const response = await apiClient.post('/subtitles/embed', data);
+    const response = await apiClient.post('/embed', data);
     return response.data;
   },
 
   async getVideoInfo(videoPath: string): Promise<VideoInfo> {
-    const response = await apiClient.get('/subtitles/video-info', {
+    const response = await apiClient.get('/video-info', {
       params: { videoPath },
     });
     return response.data.info;
   },
 
   async downloadSubtitle(subtitlePath: string): Promise<Blob> {
-    const response = await apiClient.get('/subtitles/download', {
+    const response = await apiClient.get('/download', {
       params: { subtitlePath },
       responseType: 'blob',
     });

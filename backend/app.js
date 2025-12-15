@@ -18,6 +18,8 @@ const subtitleRoutes = require('./routes/subtitleRoutes');
 const transcriptionRoutes = require('./routes/transcriptionRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const summaryRoutes = require('./routes/summaryRoutes');
+const clipRoutes = require('./routes/clipRoutes');
+const tiktokRoutes = require('./routes/tiktokRoutes');
 const { verifyToken } = require('./middleware/verifyToken');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
@@ -53,6 +55,7 @@ app.use(cookieParser());
 app.use(express.static("public"));
 app.use("/outputs", express.static(path.join(__dirname, "outputs")));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/clips', express.static(path.join(__dirname, 'outputs/clips')));
 
 
 app.use('/api', transcriptionRoutes);
@@ -64,6 +67,8 @@ app.use('/api', dashboardRoutes);
 app.use('/api/subtitles', subtitleRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/summary', summaryRoutes);
+app.use('/api/clips', clipRoutes);
+app.use('/api/tiktok', tiktokRoutes);
 
 
 app.get("/", (req, res) => {

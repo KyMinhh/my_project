@@ -1,0 +1,29 @@
+<svg width="540" height="960" viewBox="0 0 540 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="540" height="960" fill="url(#bg)"/>
+  
+  <!-- Video icon -->
+  <g transform="translate(270, 480)">
+    <!-- Play circle -->
+    <circle cx="0" cy="0" r="80" fill="white" opacity="0.2"/>
+    <circle cx="0" cy="0" r="60" fill="white" opacity="0.3"/>
+    
+    <!-- Play triangle -->
+    <path d="M -20 -30 L -20 30 L 30 0 Z" fill="white"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="270" y="650" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">
+    🎬 Smart Clip
+  </text>
+  <text x="270" y="690" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle" opacity="0.8">
+    Processing thumbnail...
+  </text>
+</svg>
