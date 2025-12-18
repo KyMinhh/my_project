@@ -5,6 +5,7 @@ import TikTokPage from './pages/TikTokPage';
 import RecentFilesPage from './pages/RecentFilesPage';
 import TranscriptDetailPage from './pages/TranscriptDetailPage';
 import CollaborativeTranscriptPage from './pages/CollaborativeTranscriptPage';
+import VideoPlayerPage from './pages/VideoPlayerPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
@@ -16,6 +17,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import VideoTranslationPage from './pages/VideoTranslationPage'; // NEW
+import TranslationHistoryPage from './pages/TranslationHistoryPage'; // NEW
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -39,8 +42,11 @@ function App() {
               <Route path="/transcribe/tiktok" element={<TikTokPage />} />
               <Route path="/files" element={<RecentFilesPage />} />
               <Route path="/transcript/:jobId" element={<TranscriptDetailPage />} />
+              <Route path="/video-sync" element={<VideoPlayerPage />} />
               <Route path="/collaborate/:transcriptId" element={<CollaborativeTranscriptPage />} />
               <Route path="/subtitles" element={<SubtitlePage />} />
+              <Route path="/translate" element={<VideoTranslationPage />} /> {/* NEW */}
+              <Route path="/translation-history" element={<TranslationHistoryPage />} /> {/* NEW */}
               <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
