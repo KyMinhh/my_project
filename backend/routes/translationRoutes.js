@@ -4,7 +4,7 @@ const videoTranslationService = require('../services/videoTranslationService');
 const languageService = require('../services/languageService');
 const TranslationHistory = require('../schemas/TranslationHistory');
 const BatchTranslation = require('../schemas/BatchTranslation');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken } = require('../middleware/verifyToken'); // FIXED
 const { v4: uuidv4 } = require('uuid');
 
 /**
