@@ -290,6 +290,10 @@ async function generateSpeechSegments(segments, languageCode, voiceConfig, outpu
 
     const audioPaths = [];
 
+    // Convert to TTS-compatible language code
+    const ttsLanguageCode = languageService.getTTSLanguageCode(languageCode);
+    console.log(`[Translation] Using TTS language code: ${ttsLanguageCode}`);
+
     for (let i = 0; i < segments.length; i++) {
         const segment = segments[i];
         const outputPath = path.join(ttsDir, `segment_${String(i).padStart(4, '0')}.mp3`);
@@ -297,7 +301,7 @@ async function generateSpeechSegments(segments, languageCode, voiceConfig, outpu
         try {
             const audioContent = await googleCloudService.textToSpeech(
                 segment.text,
-                languageCode,
+                ttsLanguageCode,  // Use TTS-compatible code
                 voiceConfig
             );
 

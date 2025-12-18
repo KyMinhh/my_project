@@ -472,6 +472,59 @@ function getPopularLanguagePairs() {
 }
 
 /**
+ * Get TTS-compatible language code
+ * Converts short codes (vi, en) to Google TTS format (vi-VN, en-US)
+ * @param {string} languageCode - Short language code
+ * @returns {string} TTS-compatible language code
+ */
+function getTTSLanguageCode(languageCode) {
+    const ttsMapping = {
+        'vi': 'vi-VN',
+        'en': 'en-US',
+        'ja': 'ja-JP',
+        'ko': 'ko-KR',
+        'zh': 'cmn-CN',
+        'zh-TW': 'cmn-TW',
+        'yue': 'yue-HK',
+        'th': 'th-TH',
+        'id': 'id-ID',
+        'ms': 'ms-MY',
+        'fil': 'fil-PH',
+        'hi': 'hi-IN',
+        'bn': 'bn-IN',
+        'ta': 'ta-IN',
+        'te': 'te-IN',
+        'ur': 'ur-PK',
+        'es': 'es-ES',
+        'fr': 'fr-FR',
+        'de': 'de-DE',
+        'it': 'it-IT',
+        'pt': 'pt-PT',
+        'ru': 'ru-RU',
+        'pl': 'pl-PL',
+        'nl': 'nl-NL',
+        'uk': 'uk-UA',
+        'cs': 'cs-CZ',
+        'sv': 'sv-SE',
+        'da': 'da-DK',
+        'fi': 'fi-FI',
+        'no': 'nb-NO',
+        'ar': 'ar-XA',
+        'tr': 'tr-TR',
+        'he': 'he-IL',
+        'fa': 'fa-IR',
+        'af': 'af-ZA',
+        'sw': 'sw-KE',
+        'el': 'el-GR',
+        'hu': 'hu-HU',
+        'ro': 'ro-RO',
+        'sk': 'sk-SK'
+    };
+
+    return ttsMapping[languageCode] || languageCode;
+}
+
+/**
  * Validate language pair for translation
  * @param {string} sourceLang - Source language code
  * @param {string} targetLang - Target language code
@@ -513,5 +566,6 @@ module.exports = {
     supportsSpeechToText,
     isRightToLeft,
     getPopularLanguagePairs,
-    validateLanguagePair
+    validateLanguagePair,
+    getTTSLanguageCode
 };
