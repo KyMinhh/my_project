@@ -33,6 +33,7 @@
   "dependencies": {
     "@google-cloud/speech": "^6.7.1",
     "@google-cloud/storage": "^7.15.2",
+    "@google-cloud/text-to-speech": "^5.4.0",
     "@google-cloud/translate": "^9.2.0",
     "@google/generative-ai": "^0.24.1",
     "archiver": "^6.0.2",
