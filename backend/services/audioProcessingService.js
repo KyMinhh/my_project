@@ -258,23 +258,41 @@ async function mergeAudioSegments(audioSegments, outputPath, crossfadeDuration =
     if (audioSegments.length === 1) {
         // Just copy the single file
         await fs.copyFile(audioSegments[0], outputPath);
+        console.log('[Audio] ✅ Single segment copied');
         return outputPath;
     }
 
-    // Create concat file for FFmpeg
+    // Create concat file for FFmpeg with proper Windows path handling
     const concatFilePath = path.join(path.dirname(outputPath), 'concat_list.txt');
-    const concatContent = audioSegments.map(seg => `file '${seg}'`).join('\n');
-    await fs.writeFile(concatFilePath, concatContent);
+
+    // Convert paths to absolute and escape for concat demuxer
+    const concatContent = audioSegments
+        .map(seg => {
+            // Get absolute path
+            const absPath = path.isAbsolute(seg) ? seg : path.resolve(seg);
+            // Replace backslashes with forward slashes for FFmpeg
+            const ffmpegPath = absPath.replace(/\\/g, '/');
+            return `file '${ffmpegPath}'`;
+        })
+        .join('\n');
+
+    await fs.writeFile(concatFilePath, concatContent, 'utf-8');
+    console.log(`[Audio] Created concat file with ${audioSegments.length} segments`);
 
     return new Promise((resolve, reject) => {
         ffmpeg()
             .input(concatFilePath)
             .inputOptions(['-f concat', '-safe 0'])
-            .audioCodec('aac')
+            .audioCodec('libmp3lame')  // Use MP3 instead of AAC for better compatibility
             .audioBitrate('192k')
             .output(outputPath)
             .on('start', (cmd) => {
-                console.log('[Audio] FFmpeg command:', cmd);
+                console.log('[Audio] FFmpeg merge command:', cmd);
+            })
+            .on('progress', (progress) => {
+                if (progress.percent) {
+                    console.log(`[Audio] Merging: ${Math.round(progress.percent)}%`);
+                }
             })
             .on('end', async () => {
                 // Clean up concat file
@@ -285,6 +303,7 @@ async function mergeAudioSegments(audioSegments, outputPath, crossfadeDuration =
             .on('error', async (err) => {
                 await fs.unlink(concatFilePath).catch(() => { });
                 console.error('[Audio] ❌ Merge failed:', err.message);
+                console.error('[Audio] Full error:', err);
                 reject(new Error(`Audio merge failed: ${err.message}`));
             })
             .run();
