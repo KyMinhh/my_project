@@ -20,6 +20,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const summaryRoutes = require('./routes/summaryRoutes');
 const clipRoutes = require('./routes/clipRoutes');
 const tiktokRoutes = require('./routes/tiktokRoutes');
+const translationRoutes = require('./routes/translationRoutes'); // NEW
 const { verifyToken } = require('./middleware/verifyToken');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
@@ -28,8 +29,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: [
-            "http://localhost:5173", 
-            "http://localhost:5174", 
+            "http://localhost:5173",
+            "http://localhost:5174",
             "http://localhost:3000",
             process.env.CLIENT_URL || "http://localhost:5173"
         ],
@@ -40,7 +41,7 @@ const io = new Server(server, {
 app.use(cors({
     origin: [
         "http://localhost:5173",
-        "http://localhost:5174", 
+        "http://localhost:5174",
         "http://localhost:3000",
         process.env.CLIENT_URL || 'http://localhost:5173'
     ],
@@ -69,6 +70,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/summary', summaryRoutes);
 app.use('/api/clips', clipRoutes);
 app.use('/api/tiktok', tiktokRoutes);
+app.use('/api/translation', translationRoutes); // NEW
 
 
 app.get("/", (req, res) => {
