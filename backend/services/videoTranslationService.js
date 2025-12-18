@@ -102,13 +102,23 @@ async function processTranslation(jobId) {
         await job.save();
 
         const originalVideo = await Job.findById(job.originalVideoId);
-        const videoPath = originalVideo.outputPath;
+
+        // Construct video path from uploads directory
+        const videoPath = path.join(__dirname, '../uploads', originalVideo.videoFileName || originalVideo.fileName);
+
+        // Check if file exists
+        try {
+            await fs.access(videoPath);
+        } catch (error) {
+            throw new Error(`Video file not found: ${videoPath}`);
+        }
+
         const outputDir = path.join(__dirname, '../outputs', jobId);
         await fs.mkdir(outputDir, { recursive: true });
 
         // Step 1: Extract audio
         await job.updateProgress(5, 'extracting_audio');
-        console.log(`[Translation] Step 1/9: Extracting audio...`);
+        console.log(`[Translation] Step 1/9: Extracting audio from ${videoPath}...`);
         const audioPath = path.join(outputDir, 'original_audio.wav');
         await audioProcessingService.extractAudio(videoPath, audioPath, {
             format: 'wav',
@@ -494,9 +504,12 @@ async function detectVideoLanguage(videoId) {
         throw new Error(`Video not found: ${videoId}`);
     }
 
+    // Construct video path
+    const videoPath = path.join(__dirname, '../uploads', video.videoFileName || video.fileName);
+
     // Extract audio temporarily
     const tempAudioPath = path.join(__dirname, '../uploads', `temp_${Date.now()}.wav`);
-    await audioProcessingService.extractAudio(video.outputPath, tempAudioPath, {
+    await audioProcessingService.extractAudio(videoPath, tempAudioPath, {
         format: 'wav',
         sampleRate: 16000,
         channels: 1

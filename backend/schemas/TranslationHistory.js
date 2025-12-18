@@ -120,7 +120,7 @@ translationHistorySchema.methods.addRating = function (rating, feedback) {
 // Static method to get user statistics
 translationHistorySchema.statics.getUserStats = async function (userId) {
     const stats = await this.aggregate([
-        { $match: { userId: mongoose.Types.ObjectId(userId) } },
+        { $match: { userId: new mongoose.Types.ObjectId(userId) } },
         {
             $group: {
                 _id: null,
